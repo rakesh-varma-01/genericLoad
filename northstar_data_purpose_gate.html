@@ -1,0 +1,1258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Data Purpose Gate</title>
+<meta name="description" content="Data Purpose Gate: checks a data reuse request against the approved use profile, the fields' readiness and pending steward decisions; minimises, holds, blocks or routes. Offline, synthetic MVP demo.">
+<style>
+:root{
+  --bg:#f3f5f8;--panel:#fff;--panel-2:#f8fafc;--sunken:#eef2f6;--line:#dfe5ec;--line-2:#c9d3df;
+  --ink:#0f1b2d;--ink-2:#334155;--muted:#64748b;
+  --accent:#0f766e;--accent-2:#0d9488;--accent-ink:#fff;--accent-soft:#e3f3f0;
+  --indigo:#4338ca;--indigo-soft:#eceefe;
+  --pass:#157a3a;--pass-soft:#e6f4ea;--fail:#b42318;--fail-soft:#fdecea;--warn:#9a5b06;--warn-soft:#fdf2df;--info:#1d4ed8;--info-soft:#e8efff;
+  --code-bg:#0f1b2d;--code-ink:#d7e3f2;
+  --shadow:0 1px 2px rgba(15,27,45,.05),0 6px 20px rgba(15,27,45,.06);
+  --r:14px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a111d;--panel:#101a2a;--panel-2:#0d1624;--sunken:#0b1420;--line:#1f2d42;--line-2:#2c3d57;
+  --ink:#e6edf7;--ink-2:#c3cfdf;--muted:#8a9bb4;
+  --accent:#2dd4bf;--accent-2:#5eead4;--accent-ink:#04201c;--accent-soft:#0f2e2b;
+  --indigo:#a5b4fc;--indigo-soft:#1c2142;
+  --pass:#4ade80;--pass-soft:#10291a;--fail:#fb7185;--fail-soft:#2e1219;--warn:#fbbf24;--warn-soft:#2d230c;--info:#93c5fd;--info-soft:#13213d;
+  --code-bg:#060c16;--code-ink:#cfdcee;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a111d;--panel:#101a2a;--panel-2:#0d1624;--sunken:#0b1420;--line:#1f2d42;--line-2:#2c3d57;
+  --ink:#e6edf7;--ink-2:#c3cfdf;--muted:#8a9bb4;
+  --accent:#2dd4bf;--accent-2:#5eead4;--accent-ink:#04201c;--accent-soft:#0f2e2b;
+  --indigo:#a5b4fc;--indigo-soft:#1c2142;
+  --pass:#4ade80;--pass-soft:#10291a;--fail:#fb7185;--fail-soft:#2e1219;--warn:#fbbf24;--warn-soft:#2d230c;--info:#93c5fd;--info-soft:#13213d;
+  --code-bg:#060c16;--code-ink:#cfdcee;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--info)}
+code,.mono{font-family:var(--mono);font-size:.92em}
+h1,h2,h3,h4{margin:0;letter-spacing:-.015em;line-height:1.25}
+p{margin:0}
+.hidden{display:none!important}
+
+/* shell */
+.app{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px 18px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 16px}
+.logo{width:34px;height:34px;border-radius:10px;background:var(--ink);display:grid;place-items:center;color:var(--bg);font:800 15px/1 var(--mono)}
+.brand b{display:block;font-size:14px}
+.brand small{color:var(--muted);font-size:11px}
+.nav-group{font:700 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:14px 10px 6px}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:9px;color:var(--ink-2);font-size:13px}
+.nav-btn:hover{background:var(--sunken)}
+.nav-btn.active{background:var(--accent-soft);color:var(--ink);font-weight:650}
+.nav-btn .n{font:600 10px/1 var(--mono);color:var(--muted);min-width:18px}
+.nav-btn.active .n{color:var(--accent)}
+.side-foot{margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 28px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.crumb{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.crumb strong{color:var(--ink)}
+.top-actions{display:flex;gap:8px;align-items:center}
+.mnav{display:none}
+.content{width:100%;max-width:1320px;margin:0 auto;padding:28px 28px 120px}
+.view{display:none}
+.view.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:.3;transform:translateY(4px)}}
+
+/* type + layout */
+.eyebrow{font:700 10.5px/1.2 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.page-head{margin-bottom:22px;max-width:900px}
+.page-head h1{font-size:30px;margin:8px 0 8px}
+.page-head p{color:var(--ink-2);font-size:15px}
+.section-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:30px 0 12px}
+.section-title h2{font-size:18px}
+.section-title p{color:var(--muted);font-size:13px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.9fr);gap:14px;align-items:start}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.between{justify-content:space-between}
+.stack>*+*{margin-top:10px}
+.mt{margin-top:14px}.mt2{margin-top:22px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px;color:var(--muted)}
+
+/* surfaces */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);min-width:0}
+.card h2{font-size:17px;margin-bottom:4px}
+.card h3{font-size:14.5px;margin-bottom:4px}
+.card p{color:var(--ink-2)}
+.card.flat{box-shadow:none;background:var(--panel-2)}
+.kicker{font:700 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:14px;margin-bottom:6px}
+.hero-main{padding:34px;background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hero-main h1{font-size:clamp(28px,3.4vw,44px);line-height:1.08;letter-spacing:-.035em;margin:12px 0 14px;max-width:760px}
+.hero-main h1 em{font-style:normal;color:var(--accent)}
+.hero-main p{font-size:15.5px;color:var(--ink-2);max-width:680px}
+.hero-main:after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;border:1px solid var(--line);box-shadow:0 0 0 30px var(--panel-2),0 0 0 31px var(--line)}
+.hero-main>*{position:relative;z-index:1}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.metric{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:12px}
+.metric strong{display:block;font-size:22px;letter-spacing:-.02em}
+.metric small{color:var(--muted);font-size:11.5px}
+.decision-card{position:relative;padding-top:44px}
+.decision-card .num{position:absolute;top:16px;left:18px;font:700 12px/1 var(--mono);color:var(--accent)}
+.decision-card .q{font-weight:650;margin:6px 0 8px}
+.decision-card .ex{font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px;margin-top:10px}
+
+/* chips + buttons */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font:650 10.5px/1.5 var(--sans);letter-spacing:.02em;border:1px solid transparent;white-space:nowrap}
+.chip.pass{background:var(--pass-soft);color:var(--pass)}
+.chip.fail{background:var(--fail-soft);color:var(--fail)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.info{background:var(--info-soft);color:var(--info)}
+.chip.neutral{background:var(--sunken);color:var(--muted);border-color:var(--line)}
+.chip.accent{background:var(--accent-soft);color:var(--accent)}
+.chip.indigo{background:var(--indigo-soft);color:var(--indigo)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink);padding:8px 13px;border-radius:9px;font-weight:600;font-size:12.5px;line-height:1.2}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* notices */
+.notice{border-radius:11px;padding:11px 13px;font-size:12.5px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2)}
+.notice b{color:var(--ink)}
+.notice.warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.notice.pass{background:var(--pass-soft);border-color:color-mix(in srgb,var(--pass) 30%,transparent)}
+.notice.fail{background:var(--fail-soft);border-color:color-mix(in srgb,var(--fail) 30%,transparent)}
+.notice.info{background:var(--info-soft);border-color:color-mix(in srgb,var(--info) 30%,transparent)}
+.callout{border-left:3px solid var(--accent);padding:12px 16px;background:var(--panel);border-radius:0 12px 12px 0;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font:700 10.5px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel-2);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td b{color:var(--ink)}
+td code{color:var(--indigo);overflow-wrap:anywhere}
+.tbl-wrap table{min-width:640px}
+
+/* editors + forms */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 12px;overflow-x:auto}
+.tab{border:0;background:transparent;padding:9px 12px;color:var(--muted);font-weight:600;font-size:13px;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--ink);border-color:var(--accent)}
+.editor{width:100%;min-height:300px;resize:vertical;border:1px solid var(--line-2);border-radius:10px;background:var(--code-bg);color:var(--code-ink);padding:13px;font:12px/1.55 var(--mono);outline:none}
+.editor:focus{border-color:var(--accent)}
+.field-label{display:flex;justify-content:space-between;font:700 10.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px}
+.select,.input{border:1px solid var(--line-2);background:var(--panel);border-radius:8px;padding:7px 10px;max-width:100%}
+input[type=file]{display:none}
+.check{display:flex;gap:10px;align-items:flex-start;padding:9px 0;font-size:13px;color:var(--ink-2)}
+.check input{accent-color:var(--accent);margin-top:3px;width:15px;height:15px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+details{border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:var(--panel)}
+details+details{margin-top:8px}
+summary{cursor:pointer;font-weight:650}
+details[open] summary{margin-bottom:8px}
+details p{color:var(--ink-2);font-size:13px}
+
+/* scenario picker */
+.scenarios{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.scn{border:1px solid var(--line);background:var(--panel);border-radius:11px;padding:10px 12px;text-align:left}
+.scn b{display:block;font-size:12.5px}
+.scn small{color:var(--muted);font-size:11px;line-height:1.35;display:block;margin-top:3px}
+.scn:hover{border-color:var(--line-2)}
+.scn.on{border-color:var(--accent);background:var(--accent-soft)}
+.scn .g{font:700 9.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+.scn.challenge .g{color:var(--warn)}
+
+/* stepper */
+.stepper{display:flex;gap:0;margin:0 0 16px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.stp{flex:1;padding:10px 12px;border:0;border-right:1px solid var(--line);background:transparent;text-align:left;font-size:12.5px;color:var(--muted)}
+.stp:last-child{border-right:0}
+.stp b{display:block;font:700 10px/1 var(--mono);letter-spacing:.1em;margin-bottom:4px}
+.stp.done{color:var(--ink-2)}
+.stp.done b{color:var(--pass)}
+.stp.on{background:var(--accent-soft);color:var(--ink)}
+.stp.on b{color:var(--accent)}
+
+/* verdict */
+.verdict{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.verdict.yes{color:var(--pass)}.verdict.potential{color:var(--warn)}.verdict.no{color:var(--muted)}
+.bar{height:6px;background:var(--sunken);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .6s ease}
+.empty{padding:44px 12px;text-align:center;color:var(--muted)}
+.empty .big{font-size:30px;opacity:.5}
+.ev{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:var(--panel-2)}
+.ev+.ev{margin-top:8px}
+.ev .row{justify-content:space-between}
+.ev b{font-family:var(--mono);font-size:12.5px}
+.ev p{font-size:12.5px;margin:6px 0 4px;color:var(--ink-2)}
+.ev small{display:block;color:var(--muted);font-size:11.5px;overflow-wrap:anywhere}
+.counts{display:flex;gap:4px;flex-wrap:wrap}
+
+/* code + flow */
+.code{background:var(--code-bg);color:var(--code-ink);border-radius:11px;padding:13px;font:11.5px/1.6 var(--mono);white-space:pre-wrap;overflow:auto;max-height:420px}
+.diff .add{color:#6ee7a8}.diff .del{color:#fda4af}.diff .chg{color:#fcd34d}.diff .ctx{color:#8aa0bd}
+.flow{display:flex;align-items:stretch;gap:6px;overflow-x:auto;padding:4px 0}
+.node{flex:1;min-width:130px;border:1px solid var(--line);background:var(--panel-2);border-radius:11px;padding:10px 12px}
+.node b{display:block;font-size:12.5px}
+.node small{color:var(--muted);font-size:11.5px}
+.node.hit{border-color:var(--fail);background:var(--fail-soft)}
+.node.ok{border-color:color-mix(in srgb,var(--pass) 50%,transparent)}
+.arrow{align-self:center;color:var(--muted)}
+.timeline{border-left:2px solid var(--line);margin-left:6px;padding-left:18px}
+.tl{position:relative;padding-bottom:14px}
+.tl:before{content:"";position:absolute;left:-24px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--panel);border:2px solid var(--accent)}
+.tl b{display:block}
+.tl small{color:var(--muted);display:block}
+.tl.on:before{background:var(--accent)}
+.tl.on b{color:var(--accent)}
+
+/* sim chart */
+.chart{display:flex;align-items:flex-end;gap:10px;height:130px;padding:18px 4px 0;border-bottom:1px solid var(--line)}
+.chart div{flex:1;background:var(--accent);opacity:.85;border-radius:5px 5px 0 0;position:relative;transition:height .4s}
+.chart div.bad{background:var(--fail)}
+.chart div:after{content:attr(data-v);position:absolute;top:-17px;left:0;right:0;text-align:center;font:600 10px var(--mono);color:var(--muted)}
+
+/* passport */
+.passport{border:1px solid var(--line-2);border-radius:18px;padding:22px;background:linear-gradient(160deg,var(--panel) 0%,var(--panel-2) 100%);box-shadow:var(--shadow)}
+.seal{width:62px;height:62px;border-radius:50%;border:2px solid var(--pass);display:grid;place-items:center;font-size:24px;font-weight:800;color:var(--pass)}
+.seal.bad{border-color:var(--warn);color:var(--warn)}
+
+/* modal, toast, demo bar */
+.modal{display:none;position:fixed;inset:0;z-index:60;background:rgba(6,12,22,.55);padding:20px;place-items:center}
+.modal.open{display:grid}
+.modal-box{width:100%;max-width:760px;max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.toast{position:fixed;right:20px;bottom:20px;z-index:80;background:var(--ink);color:var(--bg);padding:11px 15px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;max-width:420px}
+.toast.show{opacity:1;transform:none}
+.demo-bar{position:fixed;left:calc(252px + 50%);transform:translateX(calc(-50% - 126px));bottom:16px;z-index:50;width:min(860px,calc(100vw - 300px));background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:12px 14px;box-shadow:0 18px 50px rgba(0,0,0,.2);display:flex;gap:14px;align-items:center;justify-content:space-between}
+.demo-bar p{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.demo-bar .row{flex-wrap:nowrap}
+.pill-num{font:700 10px/1 var(--mono);color:var(--accent)}
+.chartbox{border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:6px;min-height:120px;display:grid;place-items:center;color:var(--muted);font-size:12px}
+.chartbox svg{display:block;width:100%;height:120px}
+.pbar{display:inline-block;width:64px;height:6px;background:var(--sunken);border-radius:4px;overflow:hidden;vertical-align:middle;margin-right:6px}
+.pbar i{display:block;height:100%;background:var(--accent)}
+.contrib{display:flex;justify-content:space-between;gap:10px;font:12px/1.4 var(--mono);padding:5px 0;border-bottom:1px dashed var(--line)}
+.contrib:last-child{border-bottom:0}
+.vin{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.vin label{font-size:13px;color:var(--ink-2)}
+.vin .input{width:100%;text-align:right}
+.vgroup{font:700 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:16px 0 4px}
+.tor{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) 130px;gap:12px;align-items:center;padding:7px 0;font-size:13px}
+.tor .track{position:relative;height:14px;background:var(--sunken);border-radius:7px}
+.tor .track i{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:7px;opacity:.85}
+.tor .track b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.pass-t{color:var(--pass)}.fail-t{color:var(--fail)}.warn-t{color:var(--warn)}
+
+@media (max-width:1100px){.scenarios{grid-template-columns:repeat(2,minmax(0,1fr))}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:980px){
+  .app{display:block}.side{display:none}
+  .mnav{display:flex;gap:6px;overflow-x:auto;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:57px;z-index:19}
+  .mnav button{white-space:nowrap}
+  .top{padding:10px 16px}.content{padding:20px 16px 130px}
+  .hero,.split,.g2,.g3{grid-template-columns:1fr}
+  .demo-bar{left:16px;right:16px;transform:none;width:auto;flex-wrap:wrap}
+  .hero-main{padding:24px}
+}
+@media (max-width:560px){.g4,.scenarios,.metrics{grid-template-columns:1fr}.top-actions .hide-sm{display:none}.stepper{flex-direction:column}.stp{border-right:0;border-bottom:1px solid var(--line)}.verdict{font-size:32px}}
+@media print{.side,.top,.mnav,.demo-bar{display:none!important}.view{display:block!important;page-break-after:always}.app{display:block}}
+
+/* combined page additions */
+.stage{display:inline-flex;align-items:center;gap:6px;font:700 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:5px 9px;border-radius:999px}
+.stage.find{background:var(--indigo-soft);color:var(--indigo)}
+.stage.prove{background:var(--accent-soft);color:var(--accent)}
+.stage.use{background:var(--warn-soft);color:var(--warn)}
+.thread{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:stretch}
+.thread .node{min-width:0}
+.thread .node h3{margin:8px 0 6px}
+.thread .node p{font-size:12.5px;color:var(--ink-2)}
+.thread .arrow{font-size:20px}
+.carry{margin-top:10px;border:1px dashed var(--line-2);border-radius:11px;padding:10px 12px;font-size:12.5px;color:var(--ink-2);background:var(--panel)}
+.jstep{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--line);opacity:.45;transition:opacity .3s}
+.jstep:last-child{border-bottom:0}
+.jstep.done,.jstep.static{opacity:1}
+.jstep .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:700 12px/1 var(--mono);background:var(--sunken);color:var(--muted);border:1px solid var(--line)}
+.jstep.done .n{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.jstep .who{font-size:12px;color:var(--muted)}
+.jstep .out{margin-top:8px;font-size:12.5px;color:var(--ink-2)}
+.persona{display:flex;gap:10px;align-items:flex-start}
+.persona .av{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--sunken);font-size:17px}
+.verdict-chip{font-size:15px;padding:6px 12px}
+@media (max-width:980px){.thread{grid-template-columns:1fr}.thread .arrow{transform:rotate(90deg);justify-self:center}}
+
+.siblings{display:flex;gap:4px;flex-wrap:wrap}
+.siblings a{font-size:11.5px;text-decoration:none;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 9px;background:var(--panel)}
+.siblings a:hover{color:var(--ink);border-color:var(--line-2)}
+.siblings a[aria-current]{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+@media (max-width:1180px){.siblings{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" aria-label="Sections">
+    <div class="brand"><div class="logo">PG</div><div><b>Data Purpose Gate</b><small>Northstar · Govern the reuse of critical data</small></div></div>
+    <nav id="sideNav"></nav>
+    <div class="side-foot">Part of <b>Northstar</b>: Find → Prove → Govern use. All applications, IDs, policies, profiles and metrics are <b>synthetic</b>. Runs offline.</div>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <div class="crumb"><span>NORTHSTAR</span><span>/</span><strong id="crumb"></strong><span class="chip warn">Synthetic demo</span></div>
+      <div class="top-actions"><nav class="siblings" aria-label="Northstar pages"><a href="northstar_cde_radar_assurance.html">CDE Radar + Assurance</a><a href="northstar_ml_candidate_model.html">ML Candidate Model</a><a href="northstar_data_purpose_gate.html" aria-current="page">Data Purpose Gate</a><a href="northstar_design_to_reuse.html">Combined journey</a></nav>
+        <button class="btn ghost sm" id="themeBtn" aria-label="Toggle colour theme">◐</button>
+        <button class="btn primary sm" onclick="startDemo()">▶ Guided demo</button></div>
+    </header>
+    <div class="mnav" id="mobileNav"></div>
+    <div class="content">
+<!-- ═════════ OVERVIEW ═════════ -->
+<section class="view" id="overview">
+  <div class="hero">
+    <div class="hero-main">
+      <div class="eyebrow"><span class="stage use">Govern use</span> · Northstar MVP component 3 of 3</div>
+      <h1>Data <em>Purpose Gate</em></h1>
+      <p>A team asks to reuse data for a new purpose. The gate checks the request against the approved use profile for that purpose, the readiness of each requested field, and any steward decision still pending. It minimises, holds, blocks or routes the request — with a reason for every field. It never grants access and never decides legality.</p>
+      <div class="row mt2"><button class="btn primary" onclick="startDemo()">▶ Guided demo</button><button class="btn" data-go="decide">Open the live demo</button><button class="btn" data-go="flow">See the use case</button></div>
+    </div>
+    <div class="card">
+      <div class="kicker">Business objective</div>
+      <h2 style="font-size:19px;line-height:1.35">Reuse critical data only for documented purposes, with only the fields needed, and only when its evidence is current.</h2>
+      <div class="timeline mt">
+        <div class="tl on"><b>Purpose first</b><small>No approved profile, no reuse — route to the owner.</small></div>
+        <div class="tl on"><b>Minimum necessary</b><small>Fields and retention cut to the profile.</small></div>
+        <div class="tl on"><b>Evidence before reuse</b><small>A CDE with failing or unknown controls is blocked.</small></div>
+      </div>
+      <p class="small mt">Self-checks for this component: <b data-checks>—</b> passing</p>
+    </div>
+  </div>
+  <div class="section-title"><h2>The problem</h2></div>
+  <div class="grid g3">
+    <div class="card"><div class="kicker">Approval creep</div><h3>Approved for billing ≠ approved for everything</h3><p>Balances approved for billing are requested for marketing or model training. Quality scores and CDE tags never establish permission.</p></div>
+    <div class="card"><div class="kicker">Over-collection</div><h3>Requests ask for everything</h3><p>Analysts request whole tables “to be safe”, with long retention. Minimisation happens late, if at all.</p></div>
+    <div class="card"><div class="kicker">Disconnected evidence</div><h3>Reuse ignores readiness</h3><p>A field whose lineage is missing or whose test failed is handed to a new consumer because nobody connected the two decisions.</p></div>
+  </div>
+  <div class="section-title"><h2>How the gate decides</h2><p>Per field, in this order. The worst field sets the verdict.</p></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Check</th><th>Field status</th><th>Request verdict</th><th>Next step</th></tr></thead><tbody>
+    <tr><td>Is there an approved profile for the purpose?</td><td><span class="chip warn">REVIEW</span></td><td><span class="chip warn">REVIEW REQUIRED</span></td><td>Data owner and policy authority (+ model-risk and privacy for AI training)</td></tr>
+    <tr><td>Is the field in the profile?</td><td><span class="chip warn">REMOVE</span></td><td><span class="chip warn">CONDITIONAL: MINIMISE</span></td><td>Accept the minimised request</td></tr>
+    <tr><td>Is a steward decision pending (rule or model candidate)?</td><td><span class="chip warn">HOLD</span></td><td><span class="chip warn">ON HOLD: STEWARD DECISION</span></td><td>Steward decides in Radar</td></tr>
+    <tr><td>Is it a CDE with failing or unknown controls?</td><td><span class="chip fail">BLOCKED</span></td><td><span class="chip fail">BLOCKED: READINESS</span></td><td>Control owner fixes evidence in Radar</td></tr>
+    <tr><td>Is retention within the profile limit?</td><td>—</td><td><span class="chip warn">CONDITIONAL: MINIMISE</span></td><td>Shorten retention</td></tr>
+    <tr><td>All clear</td><td><span class="chip pass">OK</span></td><td><span class="chip pass">COMPATIBLE WITH PROFILE</span></td><td>Owner runs identity, entitlement and consent checks, then provisions</td></tr>
+  </tbody></table></div>
+  <div class="section-title"><h2>Benefits</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Who</th><th>Benefit</th></tr></thead><tbody>
+    <tr><td><b>Data consumers &amp; AI teams</b></td><td>A fast, explained answer and a minimised request that can be approved</td></tr>
+    <tr><td><b>Data owners</b></td><td>Requests arrive pre-checked, minimised and with the evidence attached</td></tr>
+    <tr><td><b>Privacy, risk &amp; audit</b></td><td>Every reuse decision tied to a documented purpose, a profile version and current evidence</td></tr>
+  </tbody></table></div>
+  <div class="section-title"><h2>What it depends on</h2></div>
+  <div class="grid g2">
+    <div class="card"><span class="stage find">CDE Radar + Assurance</span><p class="mt">Supplies each field’s CDE status, readiness and steward decisions — the gate cannot unblock what Radar has not proven. <a href="northstar_cde_radar_assurance.html">Open →</a></p></div>
+    <div class="card"><span class="stage find">ML Candidate Model</span><p class="mt">Fields the model suggested but no steward has decided on put a request on hold. The model never makes data reusable. <a href="northstar_ml_candidate_model.html">Open →</a></p></div>
+  </div>
+</section>
+
+<!-- ═════════ FLOW ═════════ -->
+<section class="view" id="flow">
+  <div class="page-head"><div class="eyebrow">Use case</div><h1>Two requests for the same billing data</h1><p>Statement API v2.5 has been through Radar. Two teams ask to reuse its fields.</p></div>
+  <div class="card" id="flowSteps"></div>
+</section>
+
+<!-- ═════════ DECIDE ═════════ -->
+<section class="view" id="decide">
+  <div class="page-head"><div class="eyebrow"><span class="stage use">Live demo</span></div><h1>May this data be reused for this purpose?</h1></div>
+  <div class="card">
+    <div class="row between"><div><h2>Upstream state from Radar</h2><p class="small">Change what Radar has proven and decided, and watch the same request change.</p></div>
+      <div class="row"><label class="small" for="stateSel">Evidence</label><select class="select" id="stateSel"><option value="before">Before remediation (gaps)</option><option value="after">After remediation (all pass)</option></select><label class="small" for="reviewSel">Steward</label><select class="select" id="reviewSel"><option value="none">No decisions yet</option><option value="story">Decisions recorded</option></select></div></div>
+    <div class="tbl-wrap mt"><table><thead><tr><th>Field</th><th>From Radar</th><th>Readiness gaps</th><th>Steward decision</th></tr></thead><tbody id="upRows"></tbody></table></div>
+  </div>
+  <div class="split mt">
+    <div class="card">
+      <div class="row between"><h2>Reuse request</h2><div class="row"><button class="btn sm" onclick="presetRequest('story')">Billing reminders</button><button class="btn sm" onclick="presetRequest('training')">AI model training</button></div></div>
+      <div class="field-label">Requester</div><input class="input" id="reqWho" style="width:100%" value="Servicing analytics team">
+      <div class="field-label">Purpose</div><select class="select" id="reqPurpose" style="width:100%"></select>
+      <div class="notice mt" id="profileBox"></div>
+      <div class="field-label">Fields</div><div id="reqFields"></div>
+      <div class="field-label">Retention (days)</div><input class="input" type="number" id="reqDays" min="1" max="3650" value="90" style="width:120px">
+    </div>
+    <div class="card" id="decisionAnchor">
+      <div class="row between"><h2>Gate decision</h2><span class="chip neutral verdict-chip" id="useChip">—</span></div>
+      <p class="mt" id="useRoute"></p><div id="useIssues"></div>
+      <div class="tbl-wrap mt"><table style="min-width:0"><thead><tr><th>Field</th><th>Status</th><th>Reason</th></tr></thead><tbody id="useRows"></tbody></table></div>
+      <div class="row mt"><button class="btn sm primary" id="minBtn" onclick="applyMinimised()">Apply minimised request</button><button class="btn sm" onclick="downloadUse()">↓ Purpose review packet</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ PROFILES ═════════ -->
+<section class="view" id="profiles">
+  <div class="page-head"><div class="eyebrow">Configuration</div><h1>Approved use profiles</h1><p>The documented purposes the gate checks against. In your environment these come from the data-use register; edit them here to see the effect.</p></div>
+  <div class="split">
+    <div class="card"><div class="field-label"><span>use_profiles (JSON)</span><span id="profileState" class="chip neutral">valid</span></div><textarea class="editor" id="profilesInput" spellcheck="false" aria-label="Use profiles JSON"></textarea><div class="row mt"><button class="btn sm" onclick="resetProfiles()">Reset to demo profiles</button><button class="btn sm" onclick="download('use-profiles.json',$('profilesInput').value)">↓ JSON</button></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Key</th><th>Meaning</th></tr></thead><tbody>
+      <tr><td><code>purpose</code></td><td>Identifier the requester chooses</td></tr>
+      <tr><td><code>label</code>, <code>owner</code></td><td>Display name and approving owner</td></tr>
+      <tr><td><code>status</code></td><td>Only <code>approved</code> profiles are used</td></tr>
+      <tr><td><code>fields</code></td><td>Fields the purpose may use; others are minimised away</td></tr>
+      <tr><td><code>max_retention_days</code></td><td>Requested retention must be 1…max</td></tr>
+      <tr><td><code>protection</code></td><td>Required handling for sensitive fields</td></tr>
+    </tbody></table></div>
+  </div>
+</section>
+
+<!-- ═════════ EVALUATE ═════════ -->
+<section class="view" id="evaluate">
+  <div class="page-head"><div class="eyebrow">Evaluation</div><h1>A labelled set of reuse requests</h1><p>How a pilot measures the gate: owners label what the right outcome is; the gate is scored against it. The most damaging error is a wrong “compatible”.</p></div>
+  <div class="grid g4" id="caseMetrics"></div>
+  <div class="tbl-wrap mt"><table><thead><tr><th>#</th><th>Request</th><th>Upstream state</th><th>Owner’s expected outcome</th><th>Gate</th><th></th></tr></thead><tbody id="caseRows"></tbody></table></div>
+  <p class="small mt">Ten synthetic requests labelled for this demo. In the pilot, the data owner labels 30–50 real past requests.</p>
+  <div class="section-title"><h2>Pilot metrics</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Metric</th><th>Why</th></tr></thead><tbody>
+    <tr><td><b>Incorrect “compatible” decisions</b></td><td>The one error that could let data be misused</td></tr>
+    <tr><td><b>Agreement with owner outcome</b></td><td>Overall usefulness of the routing</td></tr>
+    <tr><td><b>Fields removed by minimisation</b></td><td>Less data moved for the same purpose</td></tr>
+    <tr><td><b>Time to a documented decision</b></td><td>Measured before and after, never assumed</td></tr>
+  </tbody></table></div>
+</section>
+
+<!-- ═════════ MVP ═════════ -->
+<section class="view" id="mvp">
+  <div class="page-head"><div class="eyebrow">MVP</div><h1>MVP scope &amp; architecture</h1></div>
+  <div class="card"><div class="flow"><div class="node"><b>Request</b><small>purpose · fields · retention</small></div><span class="arrow">→</span><div class="node"><b>Profile lookup</b><small>approved use profiles</small></div><span class="arrow">→</span><div class="node"><b>Field checks</b><small>profile · steward state · readiness · sensitivity</small></div><span class="arrow">→</span><div class="node"><b>Verdict + route</b><small>worst field wins</small></div><span class="arrow">→</span><div class="node"><b>Packet</b><small>to the owner; no access granted</small></div></div></div>
+  <div class="section-title"><h2>Scope</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>In the MVP</th><th>Deliberately out</th></tr></thead><tbody>
+    <tr><td>Approved use profiles with fields, retention and protection</td><td>Identity, entitlements and role-based access</td></tr>
+    <tr><td>Field and retention minimisation with a one-click minimised request</td><td>Consent management and jurisdiction rules</td></tr>
+    <tr><td>Readiness blocks and steward holds from Radar</td><td>Legal analysis; de-identification techniques</td></tr>
+    <tr><td>Training requests routed to model-risk and privacy</td><td>Provisioning and access tickets</td></tr>
+    <tr><td>JSON purpose review packet</td><td>Signed, immutable decision records</td></tr>
+  </tbody></table></div>
+  <div class="section-title"><h2>Build plan</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Hours</th><th>Deliverable</th><th>Exit check</th></tr></thead><tbody>
+    <tr><td>0–4</td><td>Two approved profiles agreed with a data owner</td><td>Fields, retention and protection signed off</td></tr>
+    <tr><td>4–12</td><td>Field checks and verdict order</td><td>Story: blocked → hold → conditional → compatible</td></tr>
+    <tr><td>12–18</td><td>Request form, minimisation, packet export</td><td>Training request always routed for review</td></tr>
+    <tr><td>18–24</td><td>Labelled request set and self-checks</td><td>Zero incorrect “compatible” on the set</td></tr>
+  </tbody></table></div>
+</section>
+
+<!-- ═════════ DEPENDENCIES ═════════ -->
+<section class="view" id="deps">
+  <div class="page-head"><div class="eyebrow">Dependencies</div><h1>Inputs, outputs &amp; integration</h1></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Input</th><th>From</th><th>In your environment</th></tr></thead><tbody>
+    <tr><td><b>Field CDE status</b></td><td>Radar (Find)</td><td>Catalog + Radar review</td></tr>
+    <tr><td><b>Readiness per field</b></td><td>Radar (Prove)</td><td>Clause results from lineage, DQ and control evidence</td></tr>
+    <tr><td><b>Steward decisions</b></td><td>Radar review</td><td>Official CDE workflow</td></tr>
+    <tr><td><b>Model suggestions</b></td><td>ML Candidate Model</td><td>Same, validated</td></tr>
+    <tr><td><b>Approved use profiles</b></td><td>This page (synthetic)</td><td>Data-use register / purpose catalogue</td></tr>
+  </tbody></table></div>
+  <div class="section-title"><h2>Outputs</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Output</th><th>Consumer</th></tr></thead><tbody>
+    <tr><td><b>Purpose review packet</b> (verdict, per-field reasons, minimised request, route)</td><td>Data owner; access management ticket</td></tr>
+    <tr><td><b>Routing</b> (owner, policy authority, model-risk, privacy)</td><td>The humans who decide</td></tr>
+  </tbody></table></div>
+  <div class="section-title"><h2>Never</h2></div>
+  <div class="card flat"><p>Grant access · decide legality · approve a CDE · treat a model score as permission · treat a high quality score as consent.</p></div>
+</section>
+
+<!-- ═════════ PRESENT ═════════ -->
+<section class="view" id="present">
+  <div class="page-head"><div class="eyebrow">Presenting this component</div><h1>About 60 seconds</h1></div>
+  <div class="split"><div class="card"><div class="row between"><h2>Script</h2><div class="row"><span class="mono" id="timer" style="font-size:20px;font-weight:700">0:00</span><button class="btn sm primary" id="timerBtn" onclick="toggleTimer()">Start</button><button class="btn sm" onclick="resetTimer()">Reset</button></div></div><div class="timeline mt" id="pitchLine"></div></div>
+  <div class="card"><div class="kicker">Line to land</div><h2 style="font-size:22px;line-height:1.3">“Good data quality is not permission. Purpose, minimum fields and current evidence — or it doesn’t move.”</h2></div></div>
+  <div class="section-title"><h2>Questions judges may ask</h2></div><div id="qa"></div>
+</section>
+
+<!-- ═════════ CHECKS ═════════ -->
+<section class="view" id="checks">
+  <div class="page-head"><div class="eyebrow">Quality</div><h1>Self-checks</h1><p>Every gate state, holds, unknown fields, missing profiles and the never-grants-access guarantee.</p></div>
+  <div class="row"><button class="btn primary" onclick="renderChecks()">Run checks</button><span class="small" id="checkSummary"></span></div>
+  <div class="tbl-wrap mt"><table><thead><tr><th>#</th><th>Area</th><th>Assertion</th><th>Result</th></tr></thead><tbody id="checkRows"></tbody></table></div>
+</section>
+
+    </div>
+  </main>
+</div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-box"><div class="row between"><div><div class="eyebrow" id="modalEye"></div><h2 id="modalTitle" style="margin-top:6px"></h2></div><button class="btn sm" onclick="closeModal()" aria-label="Close">✕</button></div><div id="modalBody" class="mt"></div></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="demo-bar hidden" id="demoBar" role="region" aria-label="Guided walkthrough"><div><span class="pill-num" id="demoNum"></span> <b id="demoTitle"></b><p id="demoText"></p></div><div class="row"><button class="btn sm" onclick="stepDemo(-1)">Back</button><button class="btn sm primary" onclick="stepDemo(1)">Next</button><button class="btn sm ghost" onclick="$('demoBar').classList.add('hidden')">Exit</button></div></div>
+<script id="engine">
+/* All fixtures, policies, IDs and thresholds are synthetic. Shared with cde_idea.html; see build notes. */
+const FIXTURE_DATE='2026-10-21';
+const clone=o=>JSON.parse(JSON.stringify(o));
+const norm=v=>String(v).replace(/[^a-z0-9]/gi,'').toLowerCase();
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function isISODate(v){return typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v}
+function daysBetween(a,b){return (Date.parse(a)-Date.parse(b))/86400000}
+
+const OPENAPI={openapi:'3.0.3',info:{title:'Northstar Card Billing',version:'2.4.0'},
+ paths:{'/statements':{get:{responses:{'200':{description:'Synthetic statement',content:{'application/json':{schema:{$ref:'#/components/schemas/Statement'}}}}}}}},
+ components:{schemas:{Statement:{type:'object',required:['statementBalance','paymentDueDate'],properties:{
+  statementBalance:{type:'number',description:'USD amount owed at statement close; authoritative input to autopay.',example:1250.75},
+  paymentDueDate:{type:'string',format:'date',description:'Payment deadline drives late fee and delinquency decisions.',example:'2026-11-12'},
+  customerEmail:{type:'string',format:'email',description:'Optional servicing contact; use for reminder notices only.',example:'alex@example.test'},
+  rewardsNickname:{type:'string',description:'Display-only label; no effect on billing or credit decisions.',example:'Weekend card'}}}}}};
+
+const CONTEXT={application_id:'APP-CARDS-101',application_name:'Northstar Card Billing',business_use:'U.S. consumer card billing and autopay',assessment_date:FIXTURE_DATE,
+ inventory:{source:'SYNTHETIC application CDE catalog export',snapshot_date:'2026-10-20',application_id:'APP-CARDS-101',complete_for_application:true,records:[
+  {field:'statementBalance',cde_id:'DEMO-CDE-042',status:'approved',owner:'Cards Finance',approval_ref:'DEMO-ATT-42',review_due:'2026-12-31',expected_type:'number'},
+  {field:'legacyMinimumPayment',cde_id:'DEMO-CDE-043',status:'approved',owner:'Cards Finance',approval_ref:'DEMO-ATT-43',review_due:'2026-06-30'}]},
+ policy_pack:{id:'DEMO-DG',version:'0.2',source:'Synthetic control pack; NOT Citi policy',effective_from:'2026-01-01',review_due:'2026-12-31',rules:[
+  {id:'DEMO-DG §1',name:'Accountable owner',attribute:'owner',test:'present',action:'Confirm the accountable owner with the domain steward.'},
+  {id:'DEMO-DG §2',name:'Trusted source reference',attribute:'trusted_source',test:'present',action:'Document and verify the source designation.'},
+  {id:'DEMO-DG §3',name:'Field lineage evidence',attribute:'lineage_ref',test:'present',action:'Link source, transformation and consumer field lineage.'},
+  {id:'DEMO-DG §4',name:'Quality control evidence',attribute:'dq_ref',test:'present',action:'Define completeness, validity, timeliness and reconciliation tests.'},
+  {id:'DEMO-DG §5',name:'Current test passed',attribute:'dq_pass',test:'equals_true',action:'Investigate the failed test and attach a successful rerun.'},
+  {id:'DEMO-DG §6',name:'Evidence age ≤30 days',attribute:'tested_at',test:'age_days',limit:30,action:'Refresh the evidence and verify the test period.'}]},
+ controls:{
+  statementBalance:{owner:'Cards Finance',trusted_source:'DEMO-LEDGER-01',lineage_ref:null,dq_ref:'DEMO-DQ-42',dq_pass:false,tested_at:'2026-08-01'},
+  paymentDueDate:{owner:null,trusted_source:'DEMO-LEDGER-01',lineage_ref:'DEMO-LIN-43',dq_ref:null,dq_pass:null,tested_at:null}},
+ use_profiles:[
+  {purpose:'billing_reminders',label:'Billing reminders',status:'approved',owner:'Cards Servicing',fields:['paymentDueDate','statementBalance','customerEmail'],max_retention_days:30,protection:'mask in logs and delete after sending'},
+  {purpose:'servicing_analytics',label:'Servicing analytics',status:'approved',owner:'Cards Finance',fields:['statementBalance','paymentDueDate','creditLimit','aprPercent'],max_retention_days:90,protection:'aggregate before sharing'}],
+ strategy:{source:'Synthetic proposed alignment criteria; replace with approved internal data strategy',domain_model_ref:'DEMO-CARDS-MODEL-2',reuses_existing_product:true,new_authoritative_copy:true}};
+
+const SCENARIOS=[
+ {id:'extended',group:'Core',label:'Card billing v2.5 · full story',expect:'YES',desc:'The end-to-end story: v2.5 adds creditLimit, aprPercent, hardshipProgramCode, cardArtId and lastLoginAt. Rules find the balance tag and the due-date candidate; the model adds creditLimit and aprPercent.'},
+ {id:'tagged',group:'Core',label:'Existing CDE + control gaps',expect:'YES',desc:'The demonstration case: approved balance with failed controls, untagged due-date candidate, sensitive email, display-only nickname, and a legacy tag outside the submitted scope.'},
+ {id:'candidate',group:'Core',label:'New candidate only',expect:'POTENTIAL',desc:'Same API with an empty inventory: nothing is tagged yet, so balance and due date surface as untagged candidates.'},
+ {id:'benign',group:'Core',label:'No signal in scope',expect:'NO',desc:'Two explicitly display-only fields and a complete, current inventory declaration. NO applies to this scope only.'},
+ {id:'ambiguous',group:'Core',label:'Ambiguous input',expect:'POTENTIAL',desc:'A bare JSON sample with no names or descriptions. Missing context can hide a CDE, so the answer is POTENTIAL, not NO.'},
+ {id:'wrongApp',group:'Challenge',label:'Wrong-application inventory',expect:'POTENTIAL',desc:'The inventory export belongs to APP-CARDS-207. The balance tag must be verified, not inherited; controls become UNKNOWN.'},
+ {id:'duplicate',group:'Challenge',label:'Duplicate tag',expect:'POTENTIAL',desc:'Two approved records (DEMO-CDE-042 and DEMO-CDE-117) claim statementBalance. Identity must be resolved before any control result counts.'},
+ {id:'expired',group:'Challenge',label:'Expired approval',expect:'POTENTIAL',desc:'The balance approval review date (2026-09-30) has passed. The tag needs re-verification before it can be relied on.'},
+ {id:'alteredType',group:'Challenge',label:'Altered type',expect:'POTENTIAL',desc:'The API now declares statementBalance as a string, while the inventory expects a number. Same name, possibly different meaning.'}];
+
+const EXTENDED_FIELDS={
+ creditLimit:{type:'number',description:'Approved credit line used in utilization and authorization'},
+ aprPercent:{type:'number',description:'Annual percentage rate applied to purchases'},
+ hardshipProgramCode:{type:'string',description:'Hardship program assigned to the account'},
+ cardArtId:{type:'string',description:'Card design image identifier; display-only'},
+ lastLoginAt:{type:'string',format:'date-time',description:'Time of the most recent app sign-in'}};
+function scenario(id){
+ const ctx=clone(CONTEXT);let api=clone(OPENAPI);
+ if(id==='extended'){api.info.version='2.5.0';Object.assign(api.components.schemas.Statement.properties,clone(EXTENDED_FIELDS))}
+ if(id==='candidate')ctx.inventory.records=[];
+ if(id==='benign'){ctx.inventory.records=[];api={type:'object',properties:{themeColor:{type:'string',description:'Display only: visual theme selection'},displayLabel:{type:'string',description:'Decorative label for the interface'}}};}
+ if(id==='ambiguous'){ctx.inventory.records=[];api={field_a:12.45,field_b:'x'};}
+ if(id==='wrongApp')ctx.inventory.application_id='APP-CARDS-207';
+ if(id==='duplicate')ctx.inventory.records.push({field:'statementBalance',cde_id:'DEMO-CDE-117',status:'approved',owner:'Cards Servicing',approval_ref:'DEMO-ATT-117',review_due:'2027-03-31',expected_type:'number'});
+ if(id==='expired')ctx.inventory.records[0].review_due='2026-09-30';
+ if(id==='alteredType')api.components.schemas.Statement.properties.statementBalance.type='string';
+ return {input:JSON.stringify(api,null,2),context:ctx};
+}
+
+/* Discovery rules. `critical` marks a CDE candidate; non-critical rules flag sensitivity only. */
+const FIELD_RULES=[
+ {id:'balance',names:['statementbalance','closingbalance','currentbalance','balance','amountdue'],description:/amount owed|statement balance|autopay/i,critical:true,reason:'Monetary value may affect billing or payment execution. Confirm the exact business definition and material use.',units:'USD major units',tests:['required numeric value','currency equals USD','reconcile to source in minor units']},
+ {id:'due',names:['paymentduedate','duedate'],description:/payment deadline|payment due|delinquency/i,critical:true,reason:'Payment deadline can affect late fees and delinquency decisions; validate the consumer use and effective calendar.',units:'calendar date',tests:['ISO calendar date','authoritative business calendar','no missing date in billing records']},
+ {id:'minimum',names:['minimumpayment','minimumpaymentdue'],description:/minimum payment/i,critical:true,reason:'Payment obligation may directly affect customer treatment.',units:'USD major units',tests:['reconcile minimum-payment calculation']},
+ {id:'credit',names:['creditscore','fico'],description:/credit decision|credit score/i,critical:true,reason:'A decision input may be material to credit outcomes; steward must validate context.',units:'model-dependent',tests:['approved score range and model version']},
+ {id:'pan',names:['pan','primaryaccountnumber','cardnumber'],description:/full payment card|primary account number/i,critical:false,reason:'Sensitive payment identifier. CDE status cannot be inferred from sensitivity alone.',units:'identifier',tests:['tokenization or masking review']},
+ {id:'email',names:['email','customeremail'],description:/email address|servicing contact/i,critical:false,reason:'Contact data needs purpose and sensitivity controls; it is not automatically a CDE.',units:'contact',tests:['permitted contact use review']},
+ {id:'ssn',names:['ssn','socialsecuritynumber','taxid'],description:/social security|tax identifier/i,critical:false,reason:'Sensitive identity data needs access and usage controls; criticality still requires business context.',units:'identifier',tests:['sensitivity and access review']}];
+
+function extractFields(raw){
+ const fields=[],warnings=[];
+ const add=(field,path,type,description,required)=>{if(!fields.some(f=>f.path===path))fields.push({field,path,type:type||'unknown',description:description||'',required:!!required})};
+ const t=raw.trim();
+ if(t.startsWith('{')||t.startsWith('[')){
+  let root;try{root=JSON.parse(t)}catch(e){throw new Error('JSON could not be parsed: '+e.message)}
+  const isSpec=!!(root&&typeof root==='object'&&(root.openapi||root.swagger||root.$schema));
+  const visit=(v,path,refs,depth)=>{
+   if(depth>32){warnings.push('Maximum nesting reached; coverage is incomplete.');return}
+   if(!v||typeof v!=='object')return;
+   if(Array.isArray(v)){v.slice(0,20).forEach((x,i)=>visit(x,path+'['+i+']',refs,depth+1));return}
+   if(typeof v.$ref==='string'){
+    const ref=v.$ref;
+    if(!ref.startsWith('#/')){warnings.push('External reference not fetched: '+ref);return}
+    if(refs.includes(ref)){warnings.push('Recursive reference skipped: '+ref);return}
+    const target=ref.slice(2).split('/').reduce((o,k)=>o&&o[k.replace(/~1/g,'/').replace(/~0/g,'~')],root);
+    if(!target){warnings.push('Unresolved reference: '+ref);return}
+    // A referenced schema gets its own path root, so one schema used by several operations is listed once.
+    visit(target,ref.split('/').pop(),refs.concat(ref),depth+1);return;
+   }
+   if(v.properties&&typeof v.properties==='object'){
+    for(const [k,val] of Object.entries(v.properties)){
+     if(!val||typeof val!=='object')continue;
+     const p=path+'.'+k;
+     add(k,p,val.type||(val.$ref?'object':''),val.description,Array.isArray(v.required)&&v.required.includes(k));
+     visit(val,p,refs,depth+1);
+    }
+    return;
+   }
+   if(v.type==='array'&&v.items){visit(v.items,path+'[]',refs,depth+1);return}
+   for(const kw of ['allOf','oneOf','anyOf'])if(Array.isArray(v[kw]))v[kw].forEach(part=>visit(part,path,refs,depth+1));
+   if(typeof v.type==='string'||v.format)return;
+   for(const [k,val] of Object.entries(v)){
+    if(['info','example','examples','description','required','servers','tags','security','allOf','oneOf','anyOf'].includes(k))continue;
+    if(isSpec&&depth===0&&['components','definitions','$defs'].includes(k))continue;
+    if(val&&typeof val==='object')visit(val,isSpec?path:path+'.'+k,refs,depth+1);
+    else if(!isSpec)add(k,path+'.'+k,typeof val,'',false);
+   }
+  };
+  visit(root,'$',[],0);
+  return {fields,warnings,mode:'JSON / OpenAPI with local $ref resolution'};
+ }
+ const lines=raw.split(/\r?\n/),isSQL=/\bselect\b/i.test(raw);
+ const skip=['type','format','description','properties','required','info','title','version','openapi','paths','responses','schema','content','example'];
+ lines.forEach((line,i)=>{
+  const m=line.match(/^\s*(?:-\s*)?([A-Za-z_]\w*)\s*:/);
+  if(m&&!skip.includes(m[1])){const d=(lines.slice(i,i+5).find(x=>/description\s*:/.test(x))||line).trim();add(m[1],'line '+(i+1),'unverified',d)}
+  if(isSQL){for(const rule of FIELD_RULES)for(const alias of rule.names){const re=new RegExp('\\b'+alias.split('').map(c=>c+'_?').join('')+'\\b','i');const hit=line.match(re);if(hit)add(hit[0],'line '+(i+1)+' · '+hit[0],'unverified',line.trim())}}
+  if(!m&&!isSQL){const x=line.match(/^\s*([A-Za-z_]\w*)\s*(?:-|=|\s)\s*(.+)$/);if(x)add(x[1],'line '+(i+1),'unverified',x[2])}
+ });
+ warnings.push('Limited text extraction; nested YAML, SQL aliases/expressions and full lineage need a production parser.');
+ return {fields,warnings,mode:'Limited YAML / SQL / description scan'};
+}
+
+function validContext(c){
+ if(!c||!c.application_id||!c.inventory||!Array.isArray(c.inventory.records)||!c.policy_pack||!Array.isArray(c.policy_pack.rules)||!c.controls||typeof c.controls!=='object'||!c.strategy)throw new Error('Context requires application_id, inventory.records, policy_pack.rules, controls and strategy. Use the template.');
+ if([c.assessment_date,c.inventory.snapshot_date,c.policy_pack.effective_from,c.policy_pack.review_due].some(d=>!isISODate(d)))throw new Error('Context dates must be valid ISO dates (YYYY-MM-DD).');
+ if(c.inventory.records.some(r=>!r||typeof r.field!=='string'))throw new Error('Each inventory record needs a field name.');
+ if(c.policy_pack.rules.length>50||c.inventory.records.length>2000)throw new Error('Demo limit: 50 policy rules and 2,000 inventory records.');
+ if(c.policy_pack.rules.some(r=>!r||!r.id||!r.attribute||!['present','equals_true','age_days'].includes(r.test)))throw new Error('Each policy rule needs an id, attribute and a supported test: present, equals_true or age_days.');
+ if(c.policy_pack.rules.some(r=>r.test==='age_days'&&(!Number.isFinite(r.limit)||r.limit<0)))throw new Error('age_days rules need a non-negative numeric limit.');
+}
+
+function fieldAction(f,c){
+ const ownerOf=()=>((c.controls[f.field]||{}).owner)||(f.record&&f.record.owner)||'Unassigned';
+ if(f.status==='EXISTING APPROVED (snapshot)')return {who:ownerOf(),what:'Keep tag; resolve any control gaps. Next approval review '+f.record.review_due+'.'};
+ if(f.status==='CONFLICTING INVENTORY RECORDS')return {who:'Domain steward',what:'Resolve duplicate records '+f.conflicts.join(' / ')+' before relying on either.'};
+ if(f.status==='EXISTING TAG NEEDS VERIFICATION')return {who:'Domain steward',what:'Re-verify mapping: '+f.mappingIssues.join('; ')+'.'};
+ if(f.status==='POSSIBLE INVENTORY MATCH')return {who:'Domain steward',what:'Confirm alias identity for '+f.possible.map(r=>r.cde_id).join(', ')+'.'};
+ if(f.status==='UNTAGGED CANDIDATE')return {who:'Domain steward',what:'Assess nomination; control owner attaches evidence for the contract.'};
+ if(f.status==='SENSITIVE / CONTEXT REVIEW')return {who:'Data owner',what:'Confirm permitted use and protection; CDE status needs business context.'};
+ return {who:'—',what:'No action for this use; reassess when fields or business use change.'};
+}
+
+function analyze(raw,c,opts){
+ validContext(c);
+ const ex=extractFields(raw);
+ if(!ex.fields.length)throw new Error('No fields found. Use JSON/OpenAPI, or one field description per line.');
+ if(ex.fields.length>1000)throw new Error('Demo supports at most 1,000 discovered field paths.');
+ const scope=c.inventory.application_id===c.application_id;
+ const snapAge=daysBetween(c.assessment_date,c.inventory.snapshot_date),fresh=snapAge>=0&&snapAge<=30;
+ const packCurrent=c.policy_pack.effective_from<=c.assessment_date&&c.policy_pack.review_due>=c.assessment_date;
+ const findings=ex.fields.map(f=>{
+  const displayOnly=/display.only|decorative|no effect on/i.test(f.description);
+  const rule=FIELD_RULES.find(r=>r.names.includes(norm(f.field)))||(!displayOnly?FIELD_RULES.find(r=>r.description.test(f.description)):undefined);
+  const uniqueName=ex.fields.filter(x=>x.field===f.field).length===1;
+  const exact=c.inventory.records.filter(r=>r.path?r.path===f.path:(r.field===f.field&&uniqueName));
+  const possible=exact.length?[]:c.inventory.records.filter(r=>norm(r.field)===norm(f.field)||(Array.isArray(r.aliases)&&r.aliases.some(a=>norm(a)===norm(f.field))));
+  const record=exact.length===1?exact[0]:null;
+  const typeMatch=!record||!record.expected_type||record.expected_type===f.type;
+  const mappingIssues=[];
+  if(record){
+   if(!scope)mappingIssues.push('inventory belongs to '+c.inventory.application_id+', not '+c.application_id);
+   if(!fresh)mappingIssues.push('inventory snapshot outside the 30-day window');
+   if(!typeMatch)mappingIssues.push('submitted type '+f.type+' ≠ expected '+record.expected_type);
+   if(record.status!=='approved')mappingIssues.push('record status is '+record.status);
+   if(!record.cde_id||!record.approval_ref)mappingIssues.push('approval reference missing');
+   if(!isISODate(record.review_due)||record.review_due<c.assessment_date)mappingIssues.push('approval review date '+record.review_due+' has passed');
+  }
+  const approved=!!record&&!mappingIssues.length;
+  const status=approved?'EXISTING APPROVED (snapshot)':exact.length>1?'CONFLICTING INVENTORY RECORDS':record?'EXISTING TAG NEEDS VERIFICATION':possible.length?'POSSIBLE INVENTORY MATCH':rule&&rule.critical?'UNTAGGED CANDIDATE':rule?'SENSITIVE / CONTEXT REVIEW':'NO CDE SIGNAL';
+  const strength=approved?95:(exact.length||possible.length)?65:rule&&rule.critical?(f.description?82:62):rule?45:25;
+  const out={...f,rule,record,possible,conflicts:exact.length>1?exact.map(r=>r.cde_id):[],mappingIssues,status,approved,typeMatch,uniqueName,strength,
+   needsCDE:approved||exact.length>0||possible.length>0||!!(rule&&rule.critical)};
+  out.action=fieldAction(out,c);
+  return out;
+ });
+ const unmatched=c.inventory.records.filter(r=>!findings.some(f=>f.record===r||(f.conflicts.length&&f.conflicts.includes(r.cde_id))));
+ const controls=[];
+ for(const f of findings.filter(x=>x.needsCDE||(opts&&opts.extra&&opts.extra.has(x.field)))){
+  const evidence=c.controls[f.field]||{};
+  for(const r of c.policy_pack.rules){
+   const value=evidence[r.attribute];let result='UNKNOWN',why='Evidence missing';
+   if(f.conflicts.length)why='Conflicting inventory records; resolve identity first';
+   else if(!f.uniqueName)why='Field name appears at several paths; path-specific evidence required';
+   else if(!f.typeMatch)why='Submitted type differs from inventory expected_type';
+   else if(!packCurrent)why='Policy pack outside its declared effective/review dates';
+   else if(!scope)why='Application and inventory scopes differ';
+   else if(value!==null&&value!==undefined&&value!==''){
+    if(r.test==='present'){result='PASS';why='Declared reference present; source not authenticated'}
+    if(r.test==='equals_true'){result=value===true?'PASS':'FAIL';why='Declared result = '+String(value)}
+    if(r.test==='age_days'){const age=isISODate(value)?daysBetween(c.assessment_date,value):NaN;result=Number.isFinite(age)&&age>=0&&age<=r.limit?'PASS':'FAIL';why='Evidence age '+(Number.isFinite(age)?Math.round(age)+' days (limit '+r.limit+')':'invalid date')}
+   }
+   controls.push({field:f.field,path:f.path,clause:r.id,requirement:r.name||r.attribute,status:result,evidence:r.attribute+' = '+JSON.stringify(value===undefined?null:value),why,action:r.action||'Owner to resolve and attach evidence.'});
+  }
+ }
+ const yes=findings.some(f=>f.approved),potential=findings.some(f=>f.needsCDE||f.rule);
+ const clearlyBenign=findings.every(f=>/display.only|decorative|visual theme/i.test(f.description));
+ const noOK=!potential&&clearlyBenign&&scope&&fresh&&c.inventory.complete_for_application===true&&!ex.warnings.length;
+ const verdict=yes?'YES':noOK?'NO':'POTENTIAL';
+ const reason=yes?'An existing approved CDE matches the supplied application snapshot. Imported approval is not independently authenticated.':noOK?'No candidate in the supplied, explicitly display-only scope. Reassess when fields or business use change.':'Candidate, sensitive, ambiguous or incomplete evidence requires steward assessment.';
+ const s=c.strategy;
+ const strategy=[
+  {criterion:'Canonical domain semantics',status:s.domain_model_ref?'EVIDENCE PRESENT':'UNKNOWN',evidence:s.domain_model_ref||'Domain mapping missing',action:'Verify the mapping against the approved domain model.'},
+  {criterion:'Reuse an existing data product',status:s.reuses_existing_product===true?'ALIGNED':s.reuses_existing_product===false?'REVIEW':'UNKNOWN',evidence:'Declared reuse = '+String(s.reuses_existing_product),action:'Document why a new product is needed if reuse is unsuitable.'},
+  {criterion:'Avoid a competing authoritative copy',status:s.new_authoritative_copy===true?'REVIEW':s.new_authoritative_copy===false?'ALIGNED':'UNKNOWN',evidence:'Declared new copy = '+String(s.new_authoritative_copy),action:'Confirm authoritative source designation with architecture.'}];
+ const warnings=ex.warnings.concat(!scope?['Inventory belongs to a different application ('+c.inventory.application_id+').']:[],!fresh?['Inventory snapshot is outside the 30-day validity window.']:[],!packCurrent?['Policy pack version needs effective-date review.']:[]);
+ return {context:c,findings,unmatched,controls,strategy,verdict,reason,strength:yes?95:noOK?70:Math.max(...findings.map(f=>f.strength)),warnings,mode:ex.mode,scope,fresh,packCurrent};
+}
+
+function remediatedContext(a){
+ const c=clone(a.context);
+ a.findings.filter(f=>f.needsCDE||f.mlSuggested).forEach(f=>{c.controls[f.field]={owner:(c.controls[f.field]||{}).owner||'Cards Finance (demo)',trusted_source:'DEMO-LEDGER-01',lineage_ref:'DEMO-LIN-'+f.field,dq_ref:'DEMO-DQ-'+f.field,dq_pass:true,tested_at:c.assessment_date}});
+ c.strategy.new_authoritative_copy=false;
+ return c;
+}
+
+function buildContract(a,review){
+ const c=a.context;
+ return {version:'draft-0.2',application_id:c.application_id,status:'proposed_not_approved',assessment_date:c.assessment_date,
+  official_classification_source:'supplied inventory snapshot only; no automatic approval',
+  policy_pack:{id:c.policy_pack.id,version:c.policy_pack.version,source:c.policy_pack.source},project_determination:a.verdict,
+  fields:a.findings.map(f=>({name:f.field,path:f.path,type:f.type,required:f.required,cde_status:f.status,existing_cde_id:f.record?f.record.cde_id:null,
+   units:f.rule?f.rule.units:'to_confirm',proposed_checks:f.rule?f.rule.tests:['confirm business meaning'],owner:(c.controls[f.field]||{}).owner||'unassigned',permitted_use:c.business_use||'to_confirm'})),
+  use_profiles:(c.use_profiles||[]).map(p=>({purpose:p.purpose,label:p.label,owner:p.owner,fields:p.fields,max_retention_days:p.max_retention_days})),release_conditions:['Steward verifies candidate and imported classifications','Producer and consumer approve semantics and SLOs','Resolve FAIL/UNKNOWN controls or attach an authorized, time-bound exception'],
+  control_findings:a.controls.filter(r=>r.status!=='PASS'),review_log:review||[],real_systems_updated:false};
+}
+
+/* Evaluation illustration: 12 synthetic fields with steward labels. */
+const EVAL_SET=[
+ ['statementBalance','USD amount owed at statement close; input to autopay','cde'],
+ ['paymentDueDate','Payment deadline that drives late fees and delinquency','cde'],
+ ['minimumPaymentDue','Minimum payment required this cycle','cde'],
+ ['closingBalance','Balance at billing-cycle close','cde'],
+ ['fico','Bureau score used in credit line decisions','cde'],
+ ['creditLimit','Approved credit line used in utilization and authorization','cde'],
+ ['aprPercent','Annual percentage rate applied to purchases','cde'],
+ ['customerEmail','Servicing contact for reminder notices','not_cde'],
+ ['rewardsNickname','Display-only label; no effect on billing or credit','not_cde'],
+ ['themeColor','Display only: visual theme selection','not_cde'],
+ ['cardArtId','Card design image identifier; display-only','not_cde'],
+ ['lastLoginAt','Time of the most recent app sign-in','not_cde']];
+function evaluateEngine(){
+ const props={};EVAL_SET.forEach(([n,d])=>props[n]={type:'string',description:d});
+ const ctx=clone(CONTEXT);ctx.inventory.records=[];
+ const a=analyze(JSON.stringify({type:'object',properties:props}),ctx);
+ const rows=EVAL_SET.map(([n,d,label])=>{const f=a.findings.find(x=>x.field===n);const pred=f.needsCDE?'cde':'not_cde';
+  return {field:n,description:d,label,predicted:pred,engine_status:f.status,outcome:label==='cde'?(pred==='cde'?'TP':'FN'):(pred==='cde'?'FP':'TN')}});
+ const k=o=>rows.filter(r=>r.outcome===o).length,tp=k('TP'),fp=k('FP'),fn=k('FN');
+ return {rows,tp,fp,fn,tn:k('TN'),precision:tp+fp?tp/(tp+fp):null,recall:tp+fn?tp/(tp+fn):null};
+}
+
+/* Candidate model: logistic regression on field-name words, description words and four domain cue features.
+   Trained on synthetic steward-style labels; it may only ADD fields to the review list, never decide. */
+const ML_CDE=`statementBalanceAmt|Balance owed on the statement used to calculate payments
+currentBalance|Outstanding balance on the card account at end of day
+newBalance|New balance printed on the monthly statement
+previousBalance|Prior cycle balance carried into the statement calculation
+outstandingPrincipal|Principal amount owed used for interest calculation
+totalAmountDue|Total amount the customer must pay by the due date
+minPayDue|Minimum amount due to keep the account current
+minimumPaymentAmount|Required minimum payment calculated each billing cycle
+pastDueAmount|Amount past due that drives delinquency treatment
+daysPastDue|Number of days the payment is late; drives delinquency bucket
+delinquencyBucket|Delinquency stage used for collections and reporting
+dueDate|Date by which payment must be received to avoid a late fee
+nextPaymentDueDate|Upcoming payment deadline used for late fee assessment
+cycleCloseDate|Billing cycle close date used to produce the statement
+statementCloseDate|Date the statement closes; determines interest and fees
+gracePeriodEndDate|Last day of the grace period before interest accrues
+lateFeeAmount|Late fee charged when the minimum payment is missed
+annualFeeAmount|Annual fee charged to the card account
+feeCharged|Fee amount assessed on the account during the cycle
+interestCharged|Interest amount charged on revolving balances
+purchaseInterestRate|Interest rate applied to purchase balances
+cashAdvanceApr|Annual percentage rate applied to cash advances
+penaltyApr|Penalty annual percentage rate after missed payments
+promoRatePercent|Promotional annual percentage rate on balance transfers
+balanceTransferRate|Rate applied to transferred balances
+dailyPeriodicRate|Periodic rate used to compute daily interest
+creditLineAmount|Total credit line assigned to the account; used in authorization
+availableCredit|Remaining credit available for purchase authorization
+cashAdvanceLimit|Maximum cash advance amount authorized on the account
+temporaryLimitIncrease|Temporary increase to the approved credit line
+overLimitAmount|Amount by which the balance exceeds the approved credit line
+creditUtilizationRatio|Balance divided by credit line used in risk decisions
+riskScore|Internal risk score used in credit line decisions
+bureauScore|Credit bureau score used in underwriting decisions
+behaviorScore|Behavior score that drives credit line management decisions
+probabilityOfDefault|Model estimate used in loss reserving and credit decisions
+chargeOffAmount|Amount charged off and reported in loss reporting
+chargeOffDate|Date the balance was charged off for regulatory reporting
+recoveryAmount|Amount recovered after charge-off used in loss reporting
+autopayAmount|Amount drafted by autopay from the customer bank account
+paymentAmount|Amount of the customer payment posted to the account
+paymentPostedDate|Date a payment posted; determines on-time status
+paymentStatus|Status of the payment used in delinquency decisions
+accountStatus|Account status code that controls authorization and reporting
+regulatoryReportCode|Code used in regulatory reporting of the account
+reserveAmount|Loss reserve amount reported in financial statements
+glAccountBalance|General ledger balance reconciled to financial reporting
+transactionAmount|Posted transaction amount in USD that updates the balance
+postedAmount|Amount posted to the ledger for the transaction
+disputeAmount|Disputed amount withheld from the balance under regulation
+rewardsLiability|Rewards points liability reported in financial statements
+interestAccrued|Accrued interest amount booked to the ledger
+minimumDueDate|Deadline for the minimum payment; drives late fees
+creditDecisionCode|Outcome code of the credit decision for the application
+underwritingIncome|Stated income used in underwriting and credit decisions
+collateralValue|Collateral value used in credit exposure reporting
+exposureAtDefault|Exposure amount used in capital reporting
+settlementAmount|Amount settled with the network and reconciled to the ledger
+feeWaiverAmount|Amount of fees waived that adjusts the balance
+creditLimitChangeDate|Date the approved credit line changed`;
+const ML_NOT=`displayName|Name shown in the app header; display only
+nickname|Customer-chosen label shown in the app; cosmetic
+cardNickname|Display-only nickname for the card; no effect on billing
+themePreference|Visual theme preference for the interface
+fontSize|Preferred font size for the mobile app
+languagePreference|Preferred display language for screens
+avatarUrl|Profile picture link shown in the app
+cardImageId|Card artwork image identifier; display only
+backgroundImage|Decorative background image for the dashboard
+tileOrder|Order of tiles on the home screen
+lastLoginTime|Time of the last sign-in to the app
+sessionId|Identifier of the current app session
+deviceType|Type of device used to sign in
+appVersion|Version of the mobile app installed
+pushToken|Token for sending push notifications to the device
+browserAgent|Browser user agent captured for troubleshooting
+pageViewCount|Number of pages viewed in the session
+clickstreamId|Identifier for web analytics events
+lastScreenViewed|Last screen the user opened in the app
+tutorialCompleted|Whether the onboarding tutorial was finished
+marketingOptIn|Whether the customer agreed to receive marketing messages
+campaignCode|Code of the marketing campaign that referred the visit
+promoBannerId|Identifier of the promotional banner shown
+surveyResponse|Free-text answer to a satisfaction survey
+npsScore|Net promoter score from a customer survey
+contactEmail|Email used for servicing messages and reminders
+emailAddress|Customer email address for notices
+mobilePhone|Phone number for text reminders
+homePhone|Home phone number for servicing calls
+mailingAddressLine|Street address for paper mail
+preferredContactTime|Preferred time for servicing calls
+reminderChannel|Channel used to send reminder notices
+notificationEnabled|Whether alerts are switched on in the app
+alertThreshold|Customer-set threshold that triggers a spending alert notification
+paperlessFlag|Whether the customer chose electronic delivery
+statementFormat|Layout preference for the statement PDF
+helpArticleId|Identifier of a help center article viewed
+chatTranscriptId|Identifier of a support chat transcript
+agentNotes|Free-text notes left by a service agent
+callReasonCode|Reason selected for a servicing call
+favoriteMerchant|Merchant the customer marked as favorite
+merchantLogoUrl|Logo image shown next to transactions
+categoryIcon|Icon shown for a spending category
+spendingCategoryLabel|Label of the budgeting category chosen by the customer
+budgetGoalName|Name of a personal budgeting goal
+widgetLayout|Layout of widgets on the dashboard
+darkModeEnabled|Whether dark mode is enabled in the app
+lastPasswordChange|Time the password was last changed
+mfaMethod|Preferred sign-in verification method
+loginAttempts|Number of sign-in attempts in the session
+cardDesignCode|Code of the card design chosen by the customer
+referralCode|Code shared to refer a friend
+socialHandle|Social media handle provided by the customer
+birthdayGreetingSent|Whether a birthday greeting message was sent
+appRating|Rating the customer gave the mobile app
+featureFlag|Feature toggle for an experimental screen
+sortPreference|Preferred sort order for the transaction list
+searchQuery|Text the customer searched for in the app
+cardArtVersion|Version of the card art asset; display only
+welcomeMessage|Welcome text shown on first login
+cardColorChoice|Color choice for the card face; no effect on credit decisions
+statementHeaderLabel|Label printed in the statement header; no effect on billing
+rewardsTierName|Display name of the rewards tier; does not affect credit or payments`;
+const ML_STOP=new Set('the an of to for on in by and or is that when with from each was be after before into at as this its it are has have no not any per which whether'.split(' '));
+const ML_CUES=[['cue:money',/\b(amount|balance|balances|usd|fee|fees|interest|rate|apr|ledger|payment|principal)\b/],['cue:decision',/(decision|delinquen|authoriz|underwrit|regulat|reporting|reconcil|charge.?off|capital|credit line)/],['cue:display',/(display|decorative|cosmetic|icon|image|logo|theme|layout|artwork)/],["cue:no-effect",/(no effect on|does not affect|not used (in|for))/],['cue:engagement',/(notification|reminder|alert|survey|marketing|session|sign-in|login)/]];
+function mlRows(){const p=(s,label)=>s.split('\n').map(l=>{const [name,description]=l.split('|');return {name,description,label}});return p(ML_CDE,'cde').concat(p(ML_NOT,'not_cde'))}
+function mlSplit(){
+ // Interleave classes, then hold out every fifth example; the split is fixed so every run is reproducible.
+ const rows=mlRows(),pos=rows.filter(r=>r.label==='cde'),neg=rows.filter(r=>r.label!=='cde'),mixed=[];
+ for(let i=0;i<Math.max(pos.length,neg.length);i++){if(pos[i])mixed.push(pos[i]);if(neg[i])mixed.push(neg[i])}
+ return {train:mixed.filter((_,i)=>i%5!==4),test:mixed.filter((_,i)=>i%5===4)};
+}
+function mlTokens(text){return String(text||'').replace(/([a-z0-9])([A-Z])/g,'$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>1&&!ML_STOP.has(w)).map(w=>w.length>3&&w.endsWith('s')&&!w.endsWith('ss')?w.slice(0,-1):w)}
+function mlFeatures(name,description){
+ const f=new Set(),text=(String(name).replace(/([a-z0-9])([A-Z])/g,'$1 $2')+' '+(description||'')).toLowerCase();
+ mlTokens(name).forEach(t=>{f.add('name:'+t);f.add('word:'+t)});
+ mlTokens(description).forEach(t=>f.add('word:'+t));
+ ML_CUES.forEach(([k,re])=>{if(re.test(text))f.add(k)});
+ return [...f];
+}
+const sigmoid=z=>1/(1+Math.exp(-z));
+function trainModel(examples,opts){
+ const o=Object.assign({epochs:300,lr:0.5,l2:0.002},opts||{});
+ const X=examples.map(e=>({f:mlFeatures(e.name,e.description),y:e.label==='cde'?1:0,w:e.weight||1}));
+ const W=X.reduce((s,x)=>s+x.w,0),w={};let b=0;const losses=[];
+ X.forEach(x=>x.f.forEach(k=>{w[k]=0}));
+ for(let ep=0;ep<o.epochs;ep++){
+  const g={};let gb=0,loss=0;
+  for(const x of X){let z=b;for(const k of x.f)z+=w[k];const p=sigmoid(z),err=(p-x.y)*x.w;gb+=err;for(const k of x.f)g[k]=(g[k]||0)+err;loss+=-x.w*(x.y*Math.log(p+1e-12)+(1-x.y)*Math.log(1-p+1e-12))}
+  for(const k in w)w[k]-=o.lr*((g[k]||0)/W+o.l2*w[k]);
+  b-=o.lr*gb/W;losses.push(loss/W);
+ }
+ return {weights:w,bias:b,losses,examples:examples.length,vocabulary:Object.keys(w).length,options:o};
+}
+function predict(model,name,description){
+ const f=mlFeatures(name,description),contributions=f.filter(k=>model.weights[k]).map(k=>({feature:k,weight:model.weights[k]})).sort((a,b)=>Math.abs(b.weight)-Math.abs(a.weight));
+ const z=model.bias+contributions.reduce((s,c)=>s+c.weight,0);
+ return {p:sigmoid(z),z,contributions,unseen:f.filter(k=>!(k in model.weights))};
+}
+function binaryMetrics(rows,key){
+ const tp=rows.filter(r=>r.label==='cde'&&r[key]).length,fp=rows.filter(r=>r.label!=='cde'&&r[key]).length,fn=rows.filter(r=>r.label==='cde'&&!r[key]).length,tn=rows.length-tp-fp-fn;
+ return {tp,fp,fn,tn,precision:tp+fp?tp/(tp+fp):null,recall:tp+fn?tp/(tp+fn):null,accuracy:(tp+tn)/rows.length,f1:tp?2*tp/(2*tp+fp+fn):0};
+}
+function mlHoldout(model,t){const rows=mlSplit().test.map(r=>({...r,model:predict(model,r.name,r.description).p>=t}));return binaryMetrics(rows,'model')}
+
+const ML_TEACH={name:'hardshipPlanFlag',description:'Customer enrolled in a hardship repayment plan',label:'cde'};
+const ML_PROBES=[[ML_TEACH.name,ML_TEACH.description],['hardshipProgramCode','Hardship program assigned to the account'],['hardshipEnrollmentDate','Date the customer joined a hardship program']];
+function mlCompare(model,t){
+ // Rules + model: the model may only add a field the rules did not flag.
+ const rows=evaluateEngine().rows.map(r=>{const p=predict(model,r.field,r.description).p;return {...r,p,rules:r.predicted==='cde',model:p>=t,hybrid:r.predicted==='cde'||p>=t}});
+ return {rows,rules:binaryMetrics(rows,'rules'),model:binaryMetrics(rows,'model'),hybrid:binaryMetrics(rows,'hybrid')};
+}
+function mlLearningCurve(t){const train=mlSplit().train;return [10,20,40,60,80,train.length].map(k=>{const h=mlHoldout(trainModel(train.slice(0,k)),t);return {k,f1:h.f1,accuracy:h.accuracy}})}
+
+/* ── Northstar combined: Find → Prove → Govern use. One evidence thread, three decisions. ── */
+const PURPOSES=[
+ {id:'billing_reminders',label:'Billing reminders'},
+ {id:'servicing_analytics',label:'Servicing analytics (aggregated)'},
+ {id:'marketing',label:'Marketing segmentation'},
+ {id:'model_training',label:'AI model training'}];
+
+function runPipeline(raw,ctx,model,t){
+ // Rules decide the verdict. The model may only add fields to the review list, which also earns them a readiness check.
+ const base=analyze(raw,ctx);
+ const score=f=>model?predict(model,f.field,f.description):null;
+ const extra=new Set(base.findings.filter(f=>{const s=score(f);return !f.needsCDE&&!f.rule&&s&&s.contributions.length&&s.p>=t}).map(f=>f.field));
+ const a=analyze(raw,ctx,{extra});
+ a.findings.forEach(f=>{const s=score(f);f.ml=s?{p:s.p,why:s.contributions.slice(0,3).map(c=>(c.weight>0?'+':'')+c.weight.toFixed(2)+' '+c.feature),known:s.contributions.length>0}:null;f.mlSuggested=extra.has(f.field);f.onReviewList=f.needsCDE||!!f.rule||f.mlSuggested});
+ a.modelThreshold=t;a.modelUsed=!!model;
+ return a;
+}
+
+function purposeGate(a,review,req){
+ const c=a.context,profile=(c.use_profiles||[]).find(p=>p.purpose===req.purpose&&p.status==='approved');
+ const decided={};(review||[]).forEach(r=>{decided[r.field]=r.decision});
+ const final=d=>d==='nominate'||d==='verify_existing'||d==='not_cde';
+ const rows=(req.fields||[]).map(name=>{
+  const f=a.findings.find(x=>x.field===name);
+  if(!f)return {field:name,status:'UNKNOWN',reason:'Not in the assessed scope. Run Find on the spec that contains it.',cde:false,gaps:0,keep:false};
+  const d=decided[name],gaps=a.controls.filter(r=>r.field===name&&r.status!=='PASS').length;
+  const flagged=f.needsCDE||f.mlSuggested;
+  const isCDE=f.approved||d==='nominate'||d==='verify_existing'||(f.needsCDE&&d!=='not_cde');
+  const pending=flagged&&!f.approved&&!final(d);
+  const sensitive=!!(f.rule&&!f.rule.critical);
+  let status='OK',reason='Within the approved use profile.';
+  if(!profile){status='REVIEW';reason='No approved use profile for this purpose.'}
+  else if(!profile.fields.includes(name)){status='REMOVE';reason='Not needed for '+profile.label.toLowerCase()+'. Minimise.'}
+  else if(pending){status='HOLD';reason='Steward decision pending ('+(f.mlSuggested?'model-suggested candidate':f.status.toLowerCase())+').'}
+  else if(isCDE&&gaps){status='BLOCKED';reason=gaps+' control gap(s). Not ready for reuse until Prove clears them.'}
+  else if(sensitive)reason='Sensitive, permitted for this profile only: '+(profile.protection||'apply masking')+'.';
+  else if(isCDE)reason='CDE with current evidence; within the profile.';
+  return {field:name,status,reason,cde:isCDE,gaps,sensitive,keep:status!=='REMOVE'};
+ });
+ const issues=[];
+ if(!req.fields||!req.fields.length)issues.push('Select at least one field.');
+ if(!profile)issues.push('No approved use profile matches “'+((PURPOSES.find(p=>p.id===req.purpose)||{}).label||req.purpose)+'”. Route to the data owner and the policy authority.');
+ const days=Number(req.retention_days);
+ if(profile&&(!Number.isFinite(days)||days<1||days>profile.max_retention_days))issues.push('Retention of '+req.retention_days+' days is outside the profile’s 1–'+profile.max_retention_days+' days.');
+ if(req.purpose==='model_training')issues.push('Model training also needs model-risk and privacy review. Quality scores and CDE tags never establish permission.');
+ const has=s=>rows.some(r=>r.status===s);
+ const verdict=!rows.length?'INCOMPLETE':!profile?'REVIEW REQUIRED':has('BLOCKED')?'BLOCKED: READINESS':has('HOLD')?'ON HOLD: STEWARD DECISION':has('UNKNOWN')?'REVIEW REQUIRED':(has('REMOVE')||issues.length)?'CONDITIONAL: MINIMISE':'COMPATIBLE WITH PROFILE';
+ const route={'BLOCKED: READINESS':'Control owner resolves the readiness gaps in Prove, then the request is re-evaluated.',
+  'ON HOLD: STEWARD DECISION':'Steward records a decision in Prove, then the request is re-evaluated.',
+  'CONDITIONAL: MINIMISE':'Accept the minimised request, or document why more is needed.',
+  'COMPATIBLE WITH PROFILE':'Data owner confirms identity, entitlements and consent, then provisions through the normal access process.',
+  'REVIEW REQUIRED':'Route to the data owner and policy authority'+(req.purpose==='model_training'?', plus model-risk and privacy review':'')+'.',
+  'INCOMPLETE':'Select fields to request.'}[verdict];
+ const minimised=profile?{...req,fields:rows.filter(r=>r.keep).map(r=>r.field),retention_days:Math.min(profile.max_retention_days,Math.max(1,Number.isFinite(days)?days:1))}:null;
+ return {request:req,profile:profile?{purpose:profile.purpose,label:profile.label,owner:profile.owner,fields:profile.fields,max_retention_days:profile.max_retention_days}:null,rows,issues,verdict,route,minimised,access_granted:false,legal_compliance_determined:false,synthetic:true};
+}
+
+const STORY_REQUEST={requester:'Servicing analytics team',purpose:'billing_reminders',fields:['statementBalance','paymentDueDate','customerEmail','creditLimit'],retention_days:90};
+const TRAINING_REQUEST={requester:'Collections AI team',purpose:'model_training',fields:['statementBalance','paymentDueDate','creditLimit','aprPercent'],retention_days:365};
+const STORY_REVIEW=[{field:'statementBalance',decision:'verify_existing'},{field:'paymentDueDate',decision:'nominate'},{field:'creditLimit',decision:'nominate'},{field:'aprPercent',decision:'nominate'},{field:'customerEmail',decision:'not_cde'}];
+
+function runJourney(model,t){
+ const s=scenario('extended');
+ const a1=runPipeline(s.input,s.context,model,t),g1=purposeGate(a1,[],STORY_REQUEST);
+ const a2=runPipeline(s.input,remediatedContext(a1),model,t);
+ const review=STORY_REVIEW.map(r=>({...r,path:(a2.findings.find(f=>f.field===r.field)||{}).path,rationale:'Demo: steward decisions from the end-to-end story',official_status_changed:false}));
+ const g2=purposeGate(a2,review,STORY_REQUEST),g3=purposeGate(a2,review,g2.minimised),g4=purposeGate(a2,review,TRAINING_REQUEST);
+ return {input:s.input,a1,g1,a2,review,g2,g3,g4,contract:buildContract(a2,review)};
+}
+
+/* Value: every number is the user's assumption; nothing here is measured. */
+const VALUE_INPUTS=[
+ {id:'apps',group:'Find',label:'Applications through design review per year',unit:'apps',def:40,step:1,pilot:'Count from the review intake log.'},
+ {id:'fields',group:'Find',label:'Fields per application',unit:'fields',def:60,step:1,pilot:'Count fields in the pilot application’s specs.'},
+ {id:'minToday',group:'Find',label:'Minutes per field to triage today',unit:'min',def:3,step:0.5,pilot:'Time stewards preparing a review packet by hand.'},
+ {id:'minWith',group:'Find',label:'Minutes per field with Northstar',unit:'min',def:1.5,step:0.5,pilot:'Time the same stewards with the review list.'},
+ {id:'lateCdes',group:'Prove',label:'CDEs found late (at release or later) per application',unit:'CDEs',def:1,step:0.1,pilot:'Count late CDE findings in past reviews.'},
+ {id:'catchShare',group:'Prove',label:'Share Northstar would catch at design',unit:'%',def:50,step:5,pilot:'Candidate recall on past late findings.'},
+ {id:'hoursLate',group:'Prove',label:'Hours to remediate a CDE found late',unit:'h',def:16,step:1,pilot:'Effort on past late-finding tickets.'},
+ {id:'hoursEarly',group:'Prove',label:'Hours to handle it at design',unit:'h',def:4,step:1,pilot:'Effort for candidates handled in the pilot.'},
+ {id:'reuseReq',group:'Govern use',label:'Data reuse requests per year',unit:'requests',def:60,step:1,pilot:'Count access/reuse tickets for the domain.'},
+ {id:'reuseToday',group:'Govern use',label:'Hours to assess a reuse request today',unit:'h',def:6,step:0.5,pilot:'Time from ticket to documented decision.'},
+ {id:'reuseWith',group:'Govern use',label:'Hours with the purpose packet',unit:'h',def:2.5,step:0.5,pilot:'Same, with the gate’s packet attached.'},
+ {id:'rate',group:'Cost',label:'Loaded cost per hour',unit:'cur',def:100,step:5,pilot:'Finance’s standard loaded rate.'}];
+const HOURS_PER_FTE=1600;
+function valueDefaults(){const a={};VALUE_INPUTS.forEach(i=>a[i.id]=i.def);return a}
+function valueEstimate(a){
+ const n=k=>{const v=Number(a[k]);return Number.isFinite(v)&&v>0?v:0};
+ const fields=n('apps')*n('fields'),triage=Math.max(0,fields*(n('minToday')-n('minWith'))/60);
+ const caught=n('apps')*n('lateCdes')*Math.min(100,n('catchShare'))/100,rework=caught*Math.max(0,n('hoursLate')-n('hoursEarly'));
+ const reuse=n('reuseReq')*Math.max(0,n('reuseToday')-n('reuseWith'));
+ const hours=triage+rework+reuse;
+ return {fields,triage,caught,rework,reuse,hours,cost:hours*n('rate'),fte:hours/HOURS_PER_FTE,estimate:true,measured:false};
+}
+function valueSensitivity(a,swing){
+ const base=valueEstimate(a).hours;
+ return VALUE_INPUTS.filter(i=>i.id!=='rate').map(i=>{const lo=valueEstimate({...a,[i.id]:a[i.id]*(1-swing)}).hours,hi=valueEstimate({...a,[i.id]:a[i.id]*(1+swing)}).hours;return {id:i.id,label:i.label,low:Math.min(lo,hi),high:Math.max(lo,hi),base,range:Math.abs(hi-lo)}}).sort((x,y)=>y.range-x.range);
+}
+
+function runSelfChecks(){
+ const results=[];
+ const t=(area,name,fn)=>{let ok=false,err='';try{ok=fn()===true}catch(e){err=e.message}results.push({area,name,ok,err})};
+ const run=id=>{const s=scenario(id);return analyze(s.input,s.context)};
+ const fs=(a,n)=>a.findings.find(f=>f.field===n);
+ const ctl=(a,f,attr)=>a.controls.find(r=>r.field===f&&r.evidence.startsWith(attr+' ')).status;
+ const A=run('tagged');
+ t('Find','Demo case verdict is YES',()=>A.verdict==='YES');
+ t('Find','statementBalance is an existing approved CDE',()=>fs(A,'statementBalance').status==='EXISTING APPROVED (snapshot)');
+ t('Find','paymentDueDate is an untagged candidate',()=>fs(A,'paymentDueDate').status==='UNTAGGED CANDIDATE');
+ t('Find','customerEmail is sensitive, not a CDE candidate',()=>fs(A,'customerEmail').status==='SENSITIVE / CONTEXT REVIEW'&&!fs(A,'customerEmail').needsCDE);
+ t('Find','rewardsNickname has no CDE signal',()=>fs(A,'rewardsNickname').status==='NO CDE SIGNAL');
+ t('Find','legacyMinimumPayment is reported outside scope',()=>A.unmatched.length===1&&A.unmatched[0].field==='legacyMinimumPayment');
+ t('Find','Display-only scope with complete inventory → NO',()=>run('benign').verdict==='NO');
+ t('Find','Ambiguous bare JSON → POTENTIAL, never NO',()=>run('ambiguous').verdict==='POTENTIAL');
+ t('Find','Wrong-application inventory is not inherited',()=>fs(run('wrongApp'),'statementBalance').status==='EXISTING TAG NEEDS VERIFICATION');
+ t('Find','Duplicate tag → conflicting records',()=>fs(run('duplicate'),'statementBalance').status==='CONFLICTING INVENTORY RECORDS');
+ t('Find','Expired approval needs verification',()=>!fs(run('expired'),'statementBalance').approved);
+ t('Find','Altered type needs verification',()=>!fs(run('alteredType'),'statementBalance').typeMatch);
+ t('Input','Malformed JSON is rejected',()=>{try{analyze('{bad',clone(CONTEXT));return false}catch(e){return /could not be parsed/.test(e.message)}});
+ t('Input','Context without a policy pack is rejected',()=>{const c=clone(CONTEXT);delete c.policy_pack;try{analyze(scenario('tagged').input,c);return false}catch(e){return true}});
+ t('Input','Input with no fields is rejected',()=>{try{analyze('{}',clone(CONTEXT));return false}catch(e){return /No fields/.test(e.message)}});
+ t('Prove','Balance lineage missing → UNKNOWN',()=>ctl(A,'statementBalance','lineage_ref')==='UNKNOWN');
+ t('Prove','Balance failed test → FAIL',()=>ctl(A,'statementBalance','dq_pass')==='FAIL');
+ t('Prove','Balance evidence 81 days old → FAIL',()=>ctl(A,'statementBalance','tested_at')==='FAIL');
+ const R=analyze(scenario('tagged').input,remediatedContext(A));
+ t('Prove','Remediation clears every FAIL and UNKNOWN',()=>R.controls.every(r=>r.status==='PASS'));
+ t('Prove','Remediation never approves the due-date candidate',()=>fs(R,'paymentDueDate').status==='UNTAGGED CANDIDATE');
+ t('Prove','Contract never claims a system update',()=>buildContract(R).real_systems_updated===false&&buildContract(R).status==='proposed_not_approved');
+ const split=mlSplit(),M=trainModel(split.train),M2=trainModel(split.train),cmp=mlCompare(M,.5);
+ t('ML','Training is deterministic',()=>JSON.stringify(M.weights)===JSON.stringify(M2.weights));
+ t('ML','Training loss falls by more than 80%',()=>M.losses[M.losses.length-1]<M.losses[0]*.2);
+ t('ML','No evaluation field appears in training data',()=>!mlRows().some(r=>EVAL_SET.some(e=>e[0]===r.name)));
+ t('ML','Rules + model catch creditLimit and aprPercent on the 12 fields',()=>['creditLimit','aprPercent'].every(n=>cmp.rows.find(r=>r.field===n).hybrid));
+ t('ML','Rules + model add no false candidates on the 12 fields',()=>cmp.hybrid.fp===0&&cmp.hybrid.recall===1);
+ t('ML','Score explanation sums exactly to the logit',()=>{const p=predict(M,'creditLimit','Approved credit line');return Math.abs(p.z-(M.bias+p.contributions.reduce((s,c)=>s+c.weight,0)))<1e-9});
+ t('ML','One steward label lifts unseen related fields over 0.5',()=>{const m=trainModel(split.train.concat([{...ML_TEACH,weight:3}]));return ML_PROBES.slice(1).every(([n,d])=>predict(M,n,d).p<.5&&predict(m,n,d).p>=.5)});
+ const s=scenario('extended'),P=runPipeline(s.input,s.context,M,.5),P0=runPipeline(s.input,s.context,null,.5);
+ t('Combined','Model suggests exactly creditLimit and aprPercent in v2.5',()=>P.findings.filter(f=>f.mlSuggested).map(f=>f.field).sort().join()==='aprPercent,creditLimit');
+ t('Combined','Verdict is identical with and without the model',()=>P.verdict===P0.verdict&&P.verdict===analyze(s.input,s.context).verdict);
+ t('Combined','Model-suggested fields get a readiness check (6 UNKNOWN each)',()=>['creditLimit','aprPercent'].every(n=>P.controls.filter(r=>r.field===n&&r.status==='UNKNOWN').length===6));
+ t('Combined','Model never re-flags a field the rules already found',()=>P.findings.every(f=>!(f.mlSuggested&&(f.needsCDE||f.rule))));
+ t('Combined','Without a model nothing is model-suggested',()=>!P0.findings.some(f=>f.mlSuggested));
+ const J=runJourney(M,.5);
+ t('Govern use','Story request before Prove → BLOCKED: READINESS',()=>J.g1.verdict==='BLOCKED: READINESS');
+ t('Govern use','Before Prove: balance blocked, due date on hold, creditLimit removed',()=>{const st=n=>J.g1.rows.find(r=>r.field===n).status;return st('statementBalance')==='BLOCKED'&&st('paymentDueDate')==='HOLD'&&st('creditLimit')==='REMOVE'&&st('customerEmail')==='OK'});
+ t('Govern use','After remediation + steward review → CONDITIONAL: MINIMISE',()=>J.g2.verdict==='CONDITIONAL: MINIMISE');
+ t('Govern use','Minimised request → COMPATIBLE WITH PROFILE',()=>J.g3.verdict==='COMPATIBLE WITH PROFILE'&&J.g3.request.retention_days===30&&!J.g3.request.fields.includes('creditLimit'));
+ t('Govern use','Model training stays REVIEW REQUIRED even after Prove',()=>J.g4.verdict==='REVIEW REQUIRED'&&J.g4.issues.some(i=>/model-risk/.test(i)));
+ t('Govern use','“Request more context” keeps a candidate on hold',()=>purposeGate(J.a2,[{field:'paymentDueDate',decision:'needs_context'}],{...STORY_REQUEST,fields:['paymentDueDate'],retention_days:30}).verdict==='ON HOLD: STEWARD DECISION');
+ t('Govern use','A field outside the assessed scope is UNKNOWN',()=>purposeGate(J.a2,J.review,{...STORY_REQUEST,fields:['accountToken'],retention_days:30}).rows[0].status==='UNKNOWN');
+ t('Govern use','No use profiles in context → REVIEW REQUIRED',()=>{const c=clone(J.a2.context);c.use_profiles=[];const a=runPipeline(s.input,c,M,.5);return purposeGate(a,J.review,STORY_REQUEST).verdict==='REVIEW REQUIRED'});
+ t('Govern use','The gate never grants access or decides legality',()=>[J.g1,J.g2,J.g3,J.g4].every(g=>g.access_granted===false&&g.legal_compliance_determined===false));
+ t('Govern use','Contract carries use profiles to the gate',()=>Array.isArray(J.contract.use_profiles)&&J.contract.use_profiles.length===2);
+ const V=valueEstimate(valueDefaults());
+ t('Value','Example assumptions: 60 + 240 + 210 = 510 h',()=>V.triage===60&&V.rework===240&&V.reuse===210&&V.hours===510&&V.cost===51000);
+ t('Value','No improvement anywhere → zero value',()=>valueEstimate({...valueDefaults(),minWith:3,catchShare:0,reuseWith:6}).hours===0);
+ t('Value','Invalid or negative inputs count as zero',()=>valueEstimate({...valueDefaults(),apps:-5,reuseReq:'x'}).hours===0);
+ t('Value','Always labelled an estimate, never measured',()=>V.estimate===true&&V.measured===false);
+ return results;
+}
+if(typeof module!=='undefined')module.exports={analyze,scenario,runPipeline,purposeGate,runJourney,trainModel,mlSplit,predict,mlCompare,valueEstimate,valueDefaults,runSelfChecks,STORY_REQUEST,TRAINING_REQUEST};
+</script>
+<script>
+/* Shared shell behaviour for the three Northstar MVP pages. */
+const $=id=>document.getElementById(id);
+const VIEW_NAMES={};
+let onViewShown=()=>{};
+function buildNav(views){
+ views.forEach(([,items])=>items.forEach(([id,,label])=>VIEW_NAMES[id]=label));
+ $('sideNav').innerHTML=views.map(([g,items])=>'<div class="nav-group">'+g+'</div>'+items.map(([id,n,label])=>'<button class="nav-btn" data-go="'+id+'"><span class="n">'+n+'</span>'+esc(label)+'</button>').join('')).join('');
+ $('mobileNav').innerHTML=views.flatMap(([,items])=>items).map(([id,,label])=>'<button class="btn sm" data-go="'+id+'">'+esc(label)+'</button>').join('');
+}
+function showView(id,keepScroll){
+ if(!VIEW_NAMES[id])id=Object.keys(VIEW_NAMES)[0];
+ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
+ document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.go===id));
+ $('crumb').textContent=VIEW_NAMES[id];
+ try{history.replaceState(null,'','#'+id)}catch(e){}
+ if(!keepScroll)window.scrollTo({top:0,behavior:'smooth'});
+ onViewShown(id);
+}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();showView(g.dataset.go)}});
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('show'),2800)}
+function download(name,content,type='application/json'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Download requested: '+name)}
+function chip(status,extra){
+ const s=String(status);let cls='neutral';
+ if(/FAIL|CONFLICT|BLOCKED/.test(s))cls='fail';
+ else if(/PASS|ALIGNED|APPROVED|COMPATIBLE|^OK$|^YES$|NOMINATE|VERIFY|^TP$|^TN$|MATCH/.test(s))cls='pass';
+ else if(/SENSITIVE|EVIDENCE PRESENT|MODEL/.test(s))cls='info';
+ else if(/UNKNOWN|REVIEW|CANDIDATE|VERIFICATION|POSSIBLE|POTENTIAL|HOLD|CONDITIONAL|REMOVE|CONTEXT|^FN$|^FP$|DIFFERS/.test(s))cls='warn';
+ return '<span class="chip '+cls+(extra?' '+extra:'')+'">'+esc(s)+'</span>';
+}
+const pct=x=>x===null||x===undefined?'—':Math.round(x*100)+'%';
+(function(){let saved=null;try{saved=localStorage.getItem('nsd-theme')}catch(e){}if(saved)document.documentElement.dataset.theme=saved;
+ $('themeBtn').onclick=()=>{const cur=document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');const next=cur==='dark'?'light':'dark';document.documentElement.dataset.theme=next;try{localStorage.setItem('nsd-theme',next)}catch(e){}}})();
+let modalOpener=null;
+function openModal(eye,title,html){modalOpener=document.activeElement;$('modalEye').textContent=eye;$('modalTitle').textContent=title;$('modalBody').innerHTML=html;$('modal').classList.add('open');$('modal').querySelector('button').focus()}
+function closeModal(){$('modal').classList.remove('open');if(modalOpener&&modalOpener.focus)modalOpener.focus()}
+$('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape')closeModal();
+ if(e.key!=='Tab'||!$('modal').classList.contains('open'))return;
+ const nodes=[...$('modal').querySelectorAll('button,a,textarea,select,input')].filter(x=>!x.disabled);if(!nodes.length)return;
+ const first=nodes[0],last=nodes[nodes.length-1];
+ if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+});
+/* Presenter script for this part, with a timer. */
+let PITCH=[],tSec=0,tHandle=null;
+const mmss=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function renderPitch(){const end=PITCH.length?PITCH[PITCH.length-1][1]:0;$('pitchLine').innerHTML=PITCH.map(([a,b,t,d])=>'<div class="tl '+(tSec>=a&&tSec<b?'on':'')+'"><b>'+mmss(a)+'–'+mmss(b)+' · '+esc(t)+'</b><small>'+esc(d)+'</small></div>').join('');$('timer').textContent=mmss(tSec);$('timer').className='mono'+(tSec>end?' fail-t':'')}
+function toggleTimer(){if(tHandle){clearInterval(tHandle);tHandle=null;$('timerBtn').textContent='Resume';return}tHandle=setInterval(()=>{tSec++;renderPitch()},1000);$('timerBtn').textContent='Pause'}
+function resetTimer(){clearInterval(tHandle);tHandle=null;tSec=0;$('timerBtn').textContent='Start';renderPitch()}
+function renderQA(items){$('qa').innerHTML=items.map(([q,a])=>'<details><summary>'+esc(q)+'</summary><p>'+esc(a)+'</p></details>').join('')}
+/* Self-checks: the engine is shared by all pages; each page shows the areas it owns. */
+let CHECK_AREAS=[];
+function renderChecks(){
+ const r=runSelfChecks().filter(x=>CHECK_AREAS.includes(x.area)),ok=r.filter(x=>x.ok).length;
+ $('checkRows').innerHTML=r.map((x,i)=>'<tr><td class="mono">'+(i+1)+'</td><td>'+esc(x.area)+'</td><td>'+esc(x.name)+(x.err?'<br><small class="fail-t">'+esc(x.err)+'</small>':'')+'</td><td>'+chip(x.ok?'PASS':'FAIL')+'</td></tr>').join('');
+ $('checkSummary').textContent=ok+' / '+r.length+' passing';
+ document.querySelectorAll('[data-checks]').forEach(el=>el.textContent=ok+'/'+r.length);
+}
+/* Guided demo: each page supplies DEMO = [{view,title,text,act}]. */
+let DEMO=[],demoAt=0;
+function startDemo(){demoAt=0;renderDemoStep()}
+function renderDemoStep(){const s=DEMO[demoAt];showView(s.view);$('demoNum').textContent=(demoAt+1)+' / '+DEMO.length;$('demoTitle').textContent=s.title;$('demoText').textContent=s.text;$('demoBar').classList.remove('hidden');s.act()}
+function stepDemo(d){if(demoAt+d>=DEMO.length){$('demoBar').classList.add('hidden');toast('Walkthrough complete.');return}demoAt=Math.max(0,demoAt+d);renderDemoStep()}
+
+/* Data Purpose Gate page. Upstream Radar states are computed by the shared engine. */
+buildNav([
+ ['Story',[['overview','00','Overview'],['flow','→','Use case']]],
+ ['Live demo',[['decide','1','Decide a request'],['profiles','2','Use profiles'],['evaluate','3','Evaluation']]],
+ ['MVP',[['mvp','◇','Scope & architecture'],['deps','§','Inputs & outputs'],['present','★','Presenting'],['checks','⚙','Self-checks']]]]);
+CHECK_AREAS=['Govern use'];
+const DECISION_LABEL={nominate:'Nominate for approval',verify_existing:'Verify existing mapping',not_cde:'No CDE nomination',needs_context:'Request more context'};
+// Upstream: Statement API v2.5 through Radar with the built-in candidate model, before and after remediation.
+const UP=(()=>{const M=trainModel(mlSplit().train),s=scenario('extended'),before=runPipeline(s.input,s.context,M,.5),after=runPipeline(s.input,remediatedContext(before),M,.5);return {before,after}})();
+const STORY_DECISIONS=STORY_REVIEW.map(r=>({...r,rationale:'Demo steward decisions',official_status_changed:false}));
+let profiles=clone(CONTEXT.use_profiles),gate=null,reqFields=STORY_REQUEST.fields.slice();
+const upstream=(state,rev)=>({a:{...UP[state],context:{...UP[state].context,use_profiles:profiles}},review:rev==='story'?STORY_DECISIONS:[]});
+const cur=()=>upstream($('stateSel').value,$('reviewSel').value);
+
+function renderUpstream(){
+ const {a,review}=cur(),d=f=>(review.find(r=>r.field===f)||{}).decision;
+ $('upRows').innerHTML=a.findings.map(f=>{const gaps=a.controls.filter(r=>r.field===f.field&&r.status!=='PASS').length,checked=a.controls.some(r=>r.field===f.field);
+  return '<tr><td><b class="mono">'+esc(f.field)+'</b></td><td>'+(f.mlSuggested?chip('MODEL-SUGGESTED CANDIDATE'):f.needsCDE||f.rule?chip(f.status):'<span class="muted">No signal</span>')+'</td><td>'+(checked?(gaps?chip(gaps+' UNKNOWN/FAIL'):chip('ALL PASS')):'<span class="muted">not checked</span>')+'</td><td>'+(d(f.field)?chip(DECISION_LABEL[d(f.field)].toUpperCase()):(f.needsCDE||f.mlSuggested)&&!f.approved?'<span class="warn-t">pending</span>':'<span class="muted">—</span>')+'</td></tr>'}).join('');
+}
+$('reqPurpose').innerHTML=PURPOSES.map(p=>'<option value="'+p.id+'">'+esc(p.label)+'</option>').join('');
+function renderForm(){
+ const {a}=cur();
+ $('reqFields').innerHTML=a.findings.map(f=>'<label class="check"><input type="checkbox" data-req="'+esc(f.field)+'"'+(reqFields.includes(f.field)?' checked':'')+'> <span><b class="mono">'+esc(f.field)+'</b> <small class="muted">'+esc(f.mlSuggested?'model-suggested':f.status.toLowerCase())+'</small></span></label>').join('');
+ evaluateUse();
+}
+function currentRequest(){return {requester:$('reqWho').value,purpose:$('reqPurpose').value,fields:[...document.querySelectorAll('[data-req]:checked')].map(x=>x.dataset.req),retention_days:Number($('reqDays').value)}}
+function evaluateUse(){
+ const {a,review}=cur(),req=currentRequest();reqFields=req.fields;gate=purposeGate(a,review,req);
+ const p=profiles.find(x=>x.purpose===req.purpose&&x.status==='approved');
+ $('profileBox').className='notice mt '+(p?'info':'warn');
+ $('profileBox').innerHTML=p?'<b>Approved profile: '+esc(p.label)+'</b> · owner '+esc(p.owner)+' · up to '+p.max_retention_days+' days<br>Fields: '+p.fields.map(f=>'<code>'+esc(f)+'</code>').join(', ')+'<br><small>Sensitive fields: '+esc(p.protection||'—')+'</small>':'<b>No approved profile for this purpose.</b> The request is routed for review.';
+ $('useChip').textContent=gate.verdict;$('useChip').className='chip verdict-chip '+(/BLOCKED/.test(gate.verdict)?'fail':/COMPATIBLE/.test(gate.verdict)?'pass':'warn');
+ $('useRoute').innerHTML='<b>Next:</b> '+esc(gate.route);
+ $('useIssues').innerHTML=gate.issues.length?'<div class="notice warn mt">'+gate.issues.map(esc).join('<br>')+'</div>':'';
+ $('useRows').innerHTML=gate.rows.length?gate.rows.map(r=>'<tr><td><b class="mono">'+esc(r.field)+'</b>'+(r.cde?' <span class="chip accent">CDE</span>':'')+'</td><td>'+chip(r.status)+'</td><td><small>'+esc(r.reason)+'</small></td></tr>').join(''):'<tr><td colspan="3" class="muted">No fields selected.</td></tr>';
+ $('minBtn').disabled=!(gate.minimised&&gate.verdict==='CONDITIONAL: MINIMISE');
+}
+['reqWho','reqPurpose','reqDays'].forEach(id=>$(id).addEventListener('input',evaluateUse));
+$('reqFields').addEventListener('change',evaluateUse);
+['stateSel','reviewSel'].forEach(id=>$(id).addEventListener('change',()=>{renderUpstream();evaluateUse()}));
+function setRequest(r){$('reqWho').value=r.requester;$('reqPurpose').value=r.purpose;$('reqDays').value=r.retention_days;reqFields=r.fields.slice();renderForm()}
+function presetRequest(which){setRequest(which==='training'?TRAINING_REQUEST:STORY_REQUEST)}
+function applyMinimised(){if(!gate||!gate.minimised)return;setRequest(gate.minimised);toast('Minimised: '+gate.minimised.fields.length+' fields, '+gate.minimised.retention_days+' days.')}
+function setUpstream(state,rev){$('stateSel').value=state;$('reviewSel').value=rev;renderUpstream();renderForm()}
+function downloadUse(){if(!gate)return;download('purpose-review-packet.json',JSON.stringify({...gate,upstream:{evidence:$('stateSel').value,steward_decisions:cur().review},profile_set:profiles},null,2))}
+
+/* Profiles editor */
+function resetProfiles(){profiles=clone(CONTEXT.use_profiles);$('profilesInput').value=JSON.stringify(profiles,null,2);$('profileState').textContent='valid';$('profileState').className='chip pass';refreshAll()}
+$('profilesInput').addEventListener('input',()=>{
+ try{const p=JSON.parse($('profilesInput').value);
+  if(!Array.isArray(p)||p.some(x=>!x||typeof x.purpose!=='string'||!Array.isArray(x.fields)||!Number.isFinite(x.max_retention_days)))throw new Error('Each profile needs purpose, fields[] and max_retention_days.');
+  profiles=p;$('profileState').textContent='valid';$('profileState').className='chip pass';refreshAll();
+ }catch(e){$('profileState').textContent='invalid: '+e.message.slice(0,60);$('profileState').className='chip fail'}
+});
+function refreshAll(){renderUpstream();renderForm();renderCases()}
+
+/* Labelled request set: expected outcomes as an owner would label them (synthetic). */
+const CASES=[
+ ['Billing reminders, 4 fields, 90 days','before','none',STORY_REQUEST,'BLOCKED: READINESS'],
+ ['Billing reminders, 4 fields, 90 days','after','none',STORY_REQUEST,'ON HOLD: STEWARD DECISION'],
+ ['Billing reminders, 4 fields, 90 days','after','story',STORY_REQUEST,'CONDITIONAL: MINIMISE'],
+ ['Billing reminders, minimised, 30 days','after','story',{...STORY_REQUEST,fields:['statementBalance','paymentDueDate','customerEmail'],retention_days:30},'COMPATIBLE WITH PROFILE'],
+ ['AI model training','after','story',TRAINING_REQUEST,'REVIEW REQUIRED'],
+ ['Marketing segmentation','after','story',{requester:'Marketing',purpose:'marketing',fields:['customerEmail','statementBalance'],retention_days:30},'REVIEW REQUIRED'],
+ ['Servicing analytics incl. model-suggested fields','after','none',{requester:'Servicing',purpose:'servicing_analytics',fields:['statementBalance','creditLimit','aprPercent'],retention_days:60},'ON HOLD: STEWARD DECISION'],
+ ['Servicing analytics incl. model-suggested fields','after','story',{requester:'Servicing',purpose:'servicing_analytics',fields:['statementBalance','creditLimit','aprPercent'],retention_days:60},'COMPATIBLE WITH PROFILE'],
+ ['Billing reminders, email only, 30 days','before','none',{...STORY_REQUEST,fields:['customerEmail'],retention_days:30},'COMPATIBLE WITH PROFILE'],
+ ['Servicing analytics asking for email','after','story',{requester:'Servicing',purpose:'servicing_analytics',fields:['statementBalance','customerEmail'],retention_days:60},'CONDITIONAL: MINIMISE']];
+function renderCases(){
+ const res=CASES.map(([name,st,rv,req,exp])=>{const u=upstream(st,rv),g=purposeGate(u.a,u.review,req);return {name,st,rv,exp,got:g.verdict,ok:g.verdict===exp}});
+ const wrongCompat=res.filter(r=>r.got==='COMPATIBLE WITH PROFILE'&&r.exp!=='COMPATIBLE WITH PROFILE').length;
+ $('caseMetrics').innerHTML=[[res.filter(r=>r.ok).length+'/'+res.length,'agree with owner outcome'],[wrongCompat,'incorrect “compatible”'],[res.filter(r=>/BLOCKED|HOLD/.test(r.got)).length,'stopped for evidence or steward'],[res.filter(r=>/REVIEW/.test(r.got)).length,'routed to owners']].map(([n,l])=>'<div class="metric"><strong>'+n+'</strong><small>'+l+'</small></div>').join('');
+ $('caseRows').innerHTML=res.map((r,i)=>'<tr><td class="mono">'+(i+1)+'</td><td>'+esc(r.name)+'</td><td><small>'+(r.st==='before'?'evidence gaps':'evidence passes')+' · '+(r.rv==='story'?'decisions recorded':'no decisions')+'</small></td><td>'+chip(r.exp)+'</td><td>'+chip(r.got)+'</td><td>'+(r.ok?chip('MATCH'):chip('DIFFERS'))+'</td></tr>').join('');
+}
+
+$('flowSteps').innerHTML=[
+ ['find','Radar + ML','Statement API v2.5 has been assessed','Balance is an approved CDE with gaps; due date is a candidate; the model suggested creditLimit and aprPercent; email is sensitive.'],
+ ['use','Servicing analytics lead','Requests 4 fields for billing reminders, 90 days','BLOCKED: READINESS — the balance has failing evidence; the due date awaits a steward; creditLimit is outside the profile; 90 days exceeds 30.'],
+ ['prove','Control owner + steward (in Radar)','Fix the evidence and record decisions','All clauses pass; the due date, credit limit and APR are nominated; email is not a CDE.'],
+ ['use','Data Purpose Gate','Re-evaluates the same request','CONDITIONAL: MINIMISE — drop creditLimit, cut retention to 30 days.'],
+ ['use','Servicing analytics lead','Accepts the minimised request','COMPATIBLE WITH PROFILE — the data owner runs identity, entitlement and consent checks, then provisions.'],
+ ['use','Collections AI team','Requests similar fields to train a model','REVIEW REQUIRED — no approved profile for model training; routed to the owner, policy authority, model-risk and privacy.']].map(([st,who,t,o],i)=>'<div class="jstep static"><div class="n">'+(i+1)+'</div><div><div class="row"><span class="stage '+st+'">'+({find:'Find',prove:'Prove',use:'Govern use'})[st]+'</span><span class="who">'+esc(who)+'</span></div><b>'+esc(t)+'</b><div class="out">'+esc(o)+'</div></div></div>').join('');
+
+PITCH=[[0,15,'The problem','“Data approved for billing gets requested for marketing and model training. A high quality score is not permission.”'],
+ [15,35,'Blocked, then conditional','The billing-reminders request is blocked: the balance’s evidence is failing and a candidate awaits a steward. Once Radar clears both, it’s only conditional — drop a field, cut retention.'],
+ [35,50,'Compatible, and routed','Apply the minimised request: compatible with the profile, handed to the owner. The model-training request is always routed for review.'],
+ [50,60,'Measured','On ten owner-labelled requests: full agreement and zero incorrect “compatible” decisions.']];
+renderPitch();
+renderQA([
+ ['Is this an access-control or legal decision?','No. It checks compatibility with a documented use profile and current evidence, then routes. Identity, entitlements, consent and legality stay with the data owner and policy authority.'],
+ ['Where do use profiles come from?','In the pilot, from the data-use register for one domain, agreed with the data owner. Here they are two synthetic profiles you can edit.'],
+ ['Why block reuse when the field’s history is good?','The gate checks current evidence for exactly the fields requested. A failed or missing control on a CDE means it is not ready for a new consumer.'],
+ ['What about de-identified data for model training?','De-identification alone never establishes a new purpose. Without an approved profile, training is always routed for owner, model-risk and privacy review.'],
+ ['What is the most important metric?','Incorrect “compatible” decisions on an owner-labelled request set — the only error that could let data be misused. It is zero on the demo set; the pilot measures it on real requests.']]);
+
+DEMO=[
+ {view:'overview',title:'Purpose before reuse',text:'Approved profile, minimum fields, current evidence — or the data does not move.',act:()=>{}},
+ {view:'decide',title:'Blocked',text:'Billing reminders with Radar’s evidence still failing: blocked on readiness, held for the steward, creditLimit outside the profile.',act:()=>{setUpstream('before','none');presetRequest('story')}},
+ {view:'decide',title:'Radar clears the evidence',text:'Remediation passes, but the steward has not decided: the request is on hold.',act:()=>setUpstream('after','none')},
+ {view:'decide',title:'Conditional → compatible',text:'Steward decisions recorded: now conditional. Apply the minimised request: compatible.',act:()=>{setUpstream('after','story');setTimeout(applyMinimised,700)}},
+ {view:'decide',title:'Model training',text:'Same fields for AI model training: review required — routed to the owner, policy, model-risk and privacy.',act:()=>presetRequest('training')},
+ {view:'evaluate',title:'Measured',text:'Ten owner-labelled requests: full agreement, zero incorrect “compatible”.',act:()=>{}}];
+$('profilesInput').value=JSON.stringify(profiles,null,2);
+setUpstream('before','none');renderCases();renderChecks();
+showView((location.hash||'#overview').slice(1),true);
+</script>
+</body>
+</html>

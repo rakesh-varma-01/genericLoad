@@ -1,0 +1,1411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ML Candidate Model</title>
+<meta name="description" content="ML Candidate Model: an explainable model trained on steward-labelled fields that adds missed CDE candidates to the review list and learns from steward decisions. Offline, synthetic MVP demo.">
+<style>
+:root{
+  --bg:#f3f5f8;--panel:#fff;--panel-2:#f8fafc;--sunken:#eef2f6;--line:#dfe5ec;--line-2:#c9d3df;
+  --ink:#0f1b2d;--ink-2:#334155;--muted:#64748b;
+  --accent:#0f766e;--accent-2:#0d9488;--accent-ink:#fff;--accent-soft:#e3f3f0;
+  --indigo:#4338ca;--indigo-soft:#eceefe;
+  --pass:#157a3a;--pass-soft:#e6f4ea;--fail:#b42318;--fail-soft:#fdecea;--warn:#9a5b06;--warn-soft:#fdf2df;--info:#1d4ed8;--info-soft:#e8efff;
+  --code-bg:#0f1b2d;--code-ink:#d7e3f2;
+  --shadow:0 1px 2px rgba(15,27,45,.05),0 6px 20px rgba(15,27,45,.06);
+  --r:14px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a111d;--panel:#101a2a;--panel-2:#0d1624;--sunken:#0b1420;--line:#1f2d42;--line-2:#2c3d57;
+  --ink:#e6edf7;--ink-2:#c3cfdf;--muted:#8a9bb4;
+  --accent:#2dd4bf;--accent-2:#5eead4;--accent-ink:#04201c;--accent-soft:#0f2e2b;
+  --indigo:#a5b4fc;--indigo-soft:#1c2142;
+  --pass:#4ade80;--pass-soft:#10291a;--fail:#fb7185;--fail-soft:#2e1219;--warn:#fbbf24;--warn-soft:#2d230c;--info:#93c5fd;--info-soft:#13213d;
+  --code-bg:#060c16;--code-ink:#cfdcee;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a111d;--panel:#101a2a;--panel-2:#0d1624;--sunken:#0b1420;--line:#1f2d42;--line-2:#2c3d57;
+  --ink:#e6edf7;--ink-2:#c3cfdf;--muted:#8a9bb4;
+  --accent:#2dd4bf;--accent-2:#5eead4;--accent-ink:#04201c;--accent-soft:#0f2e2b;
+  --indigo:#a5b4fc;--indigo-soft:#1c2142;
+  --pass:#4ade80;--pass-soft:#10291a;--fail:#fb7185;--fail-soft:#2e1219;--warn:#fbbf24;--warn-soft:#2d230c;--info:#93c5fd;--info-soft:#13213d;
+  --code-bg:#060c16;--code-ink:#cfdcee;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--info)}
+code,.mono{font-family:var(--mono);font-size:.92em}
+h1,h2,h3,h4{margin:0;letter-spacing:-.015em;line-height:1.25}
+p{margin:0}
+.hidden{display:none!important}
+
+/* shell */
+.app{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px 18px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 16px}
+.logo{width:34px;height:34px;border-radius:10px;background:var(--ink);display:grid;place-items:center;color:var(--bg);font:800 15px/1 var(--mono)}
+.brand b{display:block;font-size:14px}
+.brand small{color:var(--muted);font-size:11px}
+.nav-group{font:700 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:14px 10px 6px}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:9px;color:var(--ink-2);font-size:13px}
+.nav-btn:hover{background:var(--sunken)}
+.nav-btn.active{background:var(--accent-soft);color:var(--ink);font-weight:650}
+.nav-btn .n{font:600 10px/1 var(--mono);color:var(--muted);min-width:18px}
+.nav-btn.active .n{color:var(--accent)}
+.side-foot{margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 28px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.crumb{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.crumb strong{color:var(--ink)}
+.top-actions{display:flex;gap:8px;align-items:center}
+.mnav{display:none}
+.content{width:100%;max-width:1320px;margin:0 auto;padding:28px 28px 120px}
+.view{display:none}
+.view.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:.3;transform:translateY(4px)}}
+
+/* type + layout */
+.eyebrow{font:700 10.5px/1.2 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.page-head{margin-bottom:22px;max-width:900px}
+.page-head h1{font-size:30px;margin:8px 0 8px}
+.page-head p{color:var(--ink-2);font-size:15px}
+.section-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:30px 0 12px}
+.section-title h2{font-size:18px}
+.section-title p{color:var(--muted);font-size:13px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.9fr);gap:14px;align-items:start}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.between{justify-content:space-between}
+.stack>*+*{margin-top:10px}
+.mt{margin-top:14px}.mt2{margin-top:22px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px;color:var(--muted)}
+
+/* surfaces */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);min-width:0}
+.card h2{font-size:17px;margin-bottom:4px}
+.card h3{font-size:14.5px;margin-bottom:4px}
+.card p{color:var(--ink-2)}
+.card.flat{box-shadow:none;background:var(--panel-2)}
+.kicker{font:700 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:14px;margin-bottom:6px}
+.hero-main{padding:34px;background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hero-main h1{font-size:clamp(28px,3.4vw,44px);line-height:1.08;letter-spacing:-.035em;margin:12px 0 14px;max-width:760px}
+.hero-main h1 em{font-style:normal;color:var(--accent)}
+.hero-main p{font-size:15.5px;color:var(--ink-2);max-width:680px}
+.hero-main:after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;border:1px solid var(--line);box-shadow:0 0 0 30px var(--panel-2),0 0 0 31px var(--line)}
+.hero-main>*{position:relative;z-index:1}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.metric{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:12px}
+.metric strong{display:block;font-size:22px;letter-spacing:-.02em}
+.metric small{color:var(--muted);font-size:11.5px}
+.decision-card{position:relative;padding-top:44px}
+.decision-card .num{position:absolute;top:16px;left:18px;font:700 12px/1 var(--mono);color:var(--accent)}
+.decision-card .q{font-weight:650;margin:6px 0 8px}
+.decision-card .ex{font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px;margin-top:10px}
+
+/* chips + buttons */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font:650 10.5px/1.5 var(--sans);letter-spacing:.02em;border:1px solid transparent;white-space:nowrap}
+.chip.pass{background:var(--pass-soft);color:var(--pass)}
+.chip.fail{background:var(--fail-soft);color:var(--fail)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.info{background:var(--info-soft);color:var(--info)}
+.chip.neutral{background:var(--sunken);color:var(--muted);border-color:var(--line)}
+.chip.accent{background:var(--accent-soft);color:var(--accent)}
+.chip.indigo{background:var(--indigo-soft);color:var(--indigo)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink);padding:8px 13px;border-radius:9px;font-weight:600;font-size:12.5px;line-height:1.2}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* notices */
+.notice{border-radius:11px;padding:11px 13px;font-size:12.5px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2)}
+.notice b{color:var(--ink)}
+.notice.warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.notice.pass{background:var(--pass-soft);border-color:color-mix(in srgb,var(--pass) 30%,transparent)}
+.notice.fail{background:var(--fail-soft);border-color:color-mix(in srgb,var(--fail) 30%,transparent)}
+.notice.info{background:var(--info-soft);border-color:color-mix(in srgb,var(--info) 30%,transparent)}
+.callout{border-left:3px solid var(--accent);padding:12px 16px;background:var(--panel);border-radius:0 12px 12px 0;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font:700 10.5px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel-2);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td b{color:var(--ink)}
+td code{color:var(--indigo);overflow-wrap:anywhere}
+.tbl-wrap table{min-width:640px}
+
+/* editors + forms */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 12px;overflow-x:auto}
+.tab{border:0;background:transparent;padding:9px 12px;color:var(--muted);font-weight:600;font-size:13px;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--ink);border-color:var(--accent)}
+.editor{width:100%;min-height:300px;resize:vertical;border:1px solid var(--line-2);border-radius:10px;background:var(--code-bg);color:var(--code-ink);padding:13px;font:12px/1.55 var(--mono);outline:none}
+.editor:focus{border-color:var(--accent)}
+.field-label{display:flex;justify-content:space-between;font:700 10.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px}
+.select,.input{border:1px solid var(--line-2);background:var(--panel);border-radius:8px;padding:7px 10px;max-width:100%}
+input[type=file]{display:none}
+.check{display:flex;gap:10px;align-items:flex-start;padding:9px 0;font-size:13px;color:var(--ink-2)}
+.check input{accent-color:var(--accent);margin-top:3px;width:15px;height:15px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+details{border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:var(--panel)}
+details+details{margin-top:8px}
+summary{cursor:pointer;font-weight:650}
+details[open] summary{margin-bottom:8px}
+details p{color:var(--ink-2);font-size:13px}
+
+/* scenario picker */
+.scenarios{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.scn{border:1px solid var(--line);background:var(--panel);border-radius:11px;padding:10px 12px;text-align:left}
+.scn b{display:block;font-size:12.5px}
+.scn small{color:var(--muted);font-size:11px;line-height:1.35;display:block;margin-top:3px}
+.scn:hover{border-color:var(--line-2)}
+.scn.on{border-color:var(--accent);background:var(--accent-soft)}
+.scn .g{font:700 9.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+.scn.challenge .g{color:var(--warn)}
+
+/* stepper */
+.stepper{display:flex;gap:0;margin:0 0 16px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.stp{flex:1;padding:10px 12px;border:0;border-right:1px solid var(--line);background:transparent;text-align:left;font-size:12.5px;color:var(--muted)}
+.stp:last-child{border-right:0}
+.stp b{display:block;font:700 10px/1 var(--mono);letter-spacing:.1em;margin-bottom:4px}
+.stp.done{color:var(--ink-2)}
+.stp.done b{color:var(--pass)}
+.stp.on{background:var(--accent-soft);color:var(--ink)}
+.stp.on b{color:var(--accent)}
+
+/* verdict */
+.verdict{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.verdict.yes{color:var(--pass)}.verdict.potential{color:var(--warn)}.verdict.no{color:var(--muted)}
+.bar{height:6px;background:var(--sunken);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .6s ease}
+.empty{padding:44px 12px;text-align:center;color:var(--muted)}
+.empty .big{font-size:30px;opacity:.5}
+.ev{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:var(--panel-2)}
+.ev+.ev{margin-top:8px}
+.ev .row{justify-content:space-between}
+.ev b{font-family:var(--mono);font-size:12.5px}
+.ev p{font-size:12.5px;margin:6px 0 4px;color:var(--ink-2)}
+.ev small{display:block;color:var(--muted);font-size:11.5px;overflow-wrap:anywhere}
+.counts{display:flex;gap:4px;flex-wrap:wrap}
+
+/* code + flow */
+.code{background:var(--code-bg);color:var(--code-ink);border-radius:11px;padding:13px;font:11.5px/1.6 var(--mono);white-space:pre-wrap;overflow:auto;max-height:420px}
+.diff .add{color:#6ee7a8}.diff .del{color:#fda4af}.diff .chg{color:#fcd34d}.diff .ctx{color:#8aa0bd}
+.flow{display:flex;align-items:stretch;gap:6px;overflow-x:auto;padding:4px 0}
+.node{flex:1;min-width:130px;border:1px solid var(--line);background:var(--panel-2);border-radius:11px;padding:10px 12px}
+.node b{display:block;font-size:12.5px}
+.node small{color:var(--muted);font-size:11.5px}
+.node.hit{border-color:var(--fail);background:var(--fail-soft)}
+.node.ok{border-color:color-mix(in srgb,var(--pass) 50%,transparent)}
+.arrow{align-self:center;color:var(--muted)}
+.timeline{border-left:2px solid var(--line);margin-left:6px;padding-left:18px}
+.tl{position:relative;padding-bottom:14px}
+.tl:before{content:"";position:absolute;left:-24px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--panel);border:2px solid var(--accent)}
+.tl b{display:block}
+.tl small{color:var(--muted);display:block}
+.tl.on:before{background:var(--accent)}
+.tl.on b{color:var(--accent)}
+
+/* sim chart */
+.chart{display:flex;align-items:flex-end;gap:10px;height:130px;padding:18px 4px 0;border-bottom:1px solid var(--line)}
+.chart div{flex:1;background:var(--accent);opacity:.85;border-radius:5px 5px 0 0;position:relative;transition:height .4s}
+.chart div.bad{background:var(--fail)}
+.chart div:after{content:attr(data-v);position:absolute;top:-17px;left:0;right:0;text-align:center;font:600 10px var(--mono);color:var(--muted)}
+
+/* passport */
+.passport{border:1px solid var(--line-2);border-radius:18px;padding:22px;background:linear-gradient(160deg,var(--panel) 0%,var(--panel-2) 100%);box-shadow:var(--shadow)}
+.seal{width:62px;height:62px;border-radius:50%;border:2px solid var(--pass);display:grid;place-items:center;font-size:24px;font-weight:800;color:var(--pass)}
+.seal.bad{border-color:var(--warn);color:var(--warn)}
+
+/* modal, toast, demo bar */
+.modal{display:none;position:fixed;inset:0;z-index:60;background:rgba(6,12,22,.55);padding:20px;place-items:center}
+.modal.open{display:grid}
+.modal-box{width:100%;max-width:760px;max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.toast{position:fixed;right:20px;bottom:20px;z-index:80;background:var(--ink);color:var(--bg);padding:11px 15px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;max-width:420px}
+.toast.show{opacity:1;transform:none}
+.demo-bar{position:fixed;left:calc(252px + 50%);transform:translateX(calc(-50% - 126px));bottom:16px;z-index:50;width:min(860px,calc(100vw - 300px));background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:12px 14px;box-shadow:0 18px 50px rgba(0,0,0,.2);display:flex;gap:14px;align-items:center;justify-content:space-between}
+.demo-bar p{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.demo-bar .row{flex-wrap:nowrap}
+.pill-num{font:700 10px/1 var(--mono);color:var(--accent)}
+.chartbox{border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:6px;min-height:120px;display:grid;place-items:center;color:var(--muted);font-size:12px}
+.chartbox svg{display:block;width:100%;height:120px}
+.pbar{display:inline-block;width:64px;height:6px;background:var(--sunken);border-radius:4px;overflow:hidden;vertical-align:middle;margin-right:6px}
+.pbar i{display:block;height:100%;background:var(--accent)}
+.contrib{display:flex;justify-content:space-between;gap:10px;font:12px/1.4 var(--mono);padding:5px 0;border-bottom:1px dashed var(--line)}
+.contrib:last-child{border-bottom:0}
+.vin{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.vin label{font-size:13px;color:var(--ink-2)}
+.vin .input{width:100%;text-align:right}
+.vgroup{font:700 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:16px 0 4px}
+.tor{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) 130px;gap:12px;align-items:center;padding:7px 0;font-size:13px}
+.tor .track{position:relative;height:14px;background:var(--sunken);border-radius:7px}
+.tor .track i{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:7px;opacity:.85}
+.tor .track b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.pass-t{color:var(--pass)}.fail-t{color:var(--fail)}.warn-t{color:var(--warn)}
+
+@media (max-width:1100px){.scenarios{grid-template-columns:repeat(2,minmax(0,1fr))}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:980px){
+  .app{display:block}.side{display:none}
+  .mnav{display:flex;gap:6px;overflow-x:auto;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:57px;z-index:19}
+  .mnav button{white-space:nowrap}
+  .top{padding:10px 16px}.content{padding:20px 16px 130px}
+  .hero,.split,.g2,.g3{grid-template-columns:1fr}
+  .demo-bar{left:16px;right:16px;transform:none;width:auto;flex-wrap:wrap}
+  .hero-main{padding:24px}
+}
+@media (max-width:560px){.g4,.scenarios,.metrics{grid-template-columns:1fr}.top-actions .hide-sm{display:none}.stepper{flex-direction:column}.stp{border-right:0;border-bottom:1px solid var(--line)}.verdict{font-size:32px}}
+@media print{.side,.top,.mnav,.demo-bar{display:none!important}.view{display:block!important;page-break-after:always}.app{display:block}}
+
+/* combined page additions */
+.stage{display:inline-flex;align-items:center;gap:6px;font:700 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:5px 9px;border-radius:999px}
+.stage.find{background:var(--indigo-soft);color:var(--indigo)}
+.stage.prove{background:var(--accent-soft);color:var(--accent)}
+.stage.use{background:var(--warn-soft);color:var(--warn)}
+.thread{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:stretch}
+.thread .node{min-width:0}
+.thread .node h3{margin:8px 0 6px}
+.thread .node p{font-size:12.5px;color:var(--ink-2)}
+.thread .arrow{font-size:20px}
+.carry{margin-top:10px;border:1px dashed var(--line-2);border-radius:11px;padding:10px 12px;font-size:12.5px;color:var(--ink-2);background:var(--panel)}
+.jstep{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--line);opacity:.45;transition:opacity .3s}
+.jstep:last-child{border-bottom:0}
+.jstep.done,.jstep.static{opacity:1}
+.jstep .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:700 12px/1 var(--mono);background:var(--sunken);color:var(--muted);border:1px solid var(--line)}
+.jstep.done .n{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.jstep .who{font-size:12px;color:var(--muted)}
+.jstep .out{margin-top:8px;font-size:12.5px;color:var(--ink-2)}
+.persona{display:flex;gap:10px;align-items:flex-start}
+.persona .av{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--sunken);font-size:17px}
+.verdict-chip{font-size:15px;padding:6px 12px}
+@media (max-width:980px){.thread{grid-template-columns:1fr}.thread .arrow{transform:rotate(90deg);justify-self:center}}
+
+.siblings{display:flex;gap:4px;flex-wrap:wrap}
+.siblings a{font-size:11.5px;text-decoration:none;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 9px;background:var(--panel)}
+.siblings a:hover{color:var(--ink);border-color:var(--line-2)}
+.siblings a[aria-current]{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+@media (max-width:1180px){.siblings{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" aria-label="Sections">
+    <div class="brand"><div class="logo">ML</div><div><b>ML Candidate Model</b><small>Northstar · Catch what the rules miss</small></div></div>
+    <nav id="sideNav"></nav>
+    <div class="side-foot">Part of <b>Northstar</b>: Find → Prove → Govern use. All applications, IDs, policies, profiles and metrics are <b>synthetic</b>. Runs offline.</div>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <div class="crumb"><span>NORTHSTAR</span><span>/</span><strong id="crumb"></strong><span class="chip warn">Synthetic demo</span></div>
+      <div class="top-actions"><nav class="siblings" aria-label="Northstar pages"><a href="northstar_cde_radar_assurance.html">CDE Radar + Assurance</a><a href="northstar_ml_candidate_model.html" aria-current="page">ML Candidate Model</a><a href="northstar_data_purpose_gate.html">Data Purpose Gate</a><a href="northstar_design_to_reuse.html">Combined journey</a></nav>
+        <button class="btn ghost sm" id="themeBtn" aria-label="Toggle colour theme">◐</button>
+        <button class="btn primary sm" onclick="startDemo()">▶ Guided demo</button></div>
+    </header>
+    <div class="mnav" id="mobileNav"></div>
+    <div class="content">
+<!-- ═════════ OVERVIEW ═════════ -->
+<section class="view" id="overview">
+  <div class="hero">
+    <div class="hero-main">
+      <div class="eyebrow"><span class="stage find">Find</span> · Northstar MVP component 2 of 3</div>
+      <h1>ML <em>Candidate Model</em></h1>
+      <p>Discovery rules are precise but only find what they were written for. This small, explainable model reads field names and descriptions, learns from steward-labelled examples, and adds the fields the rules miss to the steward’s review list — with the words behind every score. It never decides a verdict, a policy result or a reuse request.</p>
+      <div class="row mt2"><button class="btn primary" onclick="startDemo()">▶ Guided demo</button><button class="btn" data-go="train">Train it now</button><button class="btn" data-go="apply">Apply it to a spec</button></div>
+    </div>
+    <div class="card">
+      <div class="kicker">Business objective</div>
+      <h2 style="font-size:19px;line-height:1.35">Miss fewer critical data elements at design time without adding noise for stewards.</h2>
+      <div class="metrics mt"><div class="metric"><strong id="ovRules">—</strong><small>recall · rules only</small></div><div class="metric"><strong id="ovHybrid">—</strong><small>recall · rules + model</small></div><div class="metric"><strong id="ovFp">—</strong><small>false candidates added</small></div><div class="metric"><strong data-checks>—</strong><small>self-checks passing</small></div></div>
+      <p class="small mt">On 12 hand-written fields never used in training. Illustrative, not a performance claim.</p>
+    </div>
+  </div>
+  <div class="section-title"><h2>The problem</h2></div>
+  <div class="grid g3">
+    <div class="card"><div class="kicker">Brittle rules</div><h3>Rules find only what they name</h3><p>A rule for “balance” and “due date” misses a credit limit or an APR, even though both drive credit outcomes.</p></div>
+    <div class="card"><div class="kicker">Steward knowledge is lost</div><h3>Every decision is made once</h3><p>Stewards decide the same kinds of fields across applications, but nothing learns from those decisions.</p></div>
+    <div class="card"><div class="kicker">Black boxes are not acceptable</div><h3>A score must explain itself</h3><p>In a bank, a model that flags data must show why, be reproducible and be validated before production.</p></div>
+  </div>
+  <div class="section-title"><h2>Guardrails, by design</h2></div>
+  <div class="grid g4">
+    <div class="card flat"><h3>Adds, never removes</h3><p class="small">It can put a field on the review list; it can never take one off.</p></div>
+    <div class="card flat"><h3>Never decides</h3><p class="small">Verdicts, policy results and reuse decisions stay rule-based and human-approved.</p></div>
+    <div class="card flat"><h3>Explains every score</h3><p class="small">Score = bias + word weights. The top reasons travel with the suggestion.</p></div>
+    <div class="card flat"><h3>Metadata only</h3><p class="small">Reads names and descriptions — never data values or customer data.</p></div>
+  </div>
+  <div class="section-title"><h2>Benefits</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Who</th><th>Benefit</th></tr></thead><tbody>
+    <tr><td><b>Data stewards</b></td><td>Fewer misses; their decisions improve the next scan</td></tr>
+    <tr><td><b>Project engineers</b></td><td>Earlier, explained suggestions — in the review list and on pull requests</td></tr>
+    <tr><td><b>Model risk &amp; audit</b></td><td>A transparent, deterministic model with a model card and parity across notebook, CLI and browser</td></tr>
+  </tbody></table></div>
+  <div class="section-title"><h2>Where it sits in Northstar</h2></div>
+  <div class="grid g2">
+    <div class="card"><span class="stage find">CDE Radar + Assurance</span><p class="mt">Model suggestions join Radar’s review list and get the same clause-by-clause readiness check. Radar exports steward decisions as labels for this model. <a href="northstar_cde_radar_assurance.html">Open →</a></p></div>
+    <div class="card"><span class="stage use">Data Purpose Gate</span><p class="mt">A model-suggested field without a steward decision puts a reuse request on hold — the model never makes it reusable. <a href="northstar_data_purpose_gate.html">Open →</a></p></div>
+  </div>
+</section>
+
+<!-- ═════════ HOW ═════════ -->
+<section class="view" id="how">
+  <div class="page-head"><div class="eyebrow">How it works</div><h1>Small, explainable, reproducible</h1></div>
+  <div class="card"><div class="flow"><div class="node"><b>Field</b><small>name + description</small></div><span class="arrow">→</span><div class="node"><b>Features</b><small>name words · description words · 5 domain cues</small></div><span class="arrow">→</span><div class="node"><b>Logistic regression</b><small>p = σ(bias + Σ weights)</small></div><span class="arrow">→</span><div class="node"><b>Threshold</b><small>suggest review if p ≥ t</small></div><span class="arrow">→</span><div class="node"><b>Review list</b><small>+ top reasons; steward decides</small></div></div></div>
+  <div class="grid g2 mt">
+    <div class="tbl-wrap"><table><thead><tr><th>Feature</th><th>Example for <code>creditLimit</code></th></tr></thead><tbody>
+      <tr><td>Name words</td><td><code>name:credit</code>, <code>name:limit</code></td></tr>
+      <tr><td>All words</td><td><code>word:approved</code>, <code>word:line</code>, <code>word:authorization</code>…</td></tr>
+      <tr><td>Cue: money</td><td>amount, balance, fee, interest, rate, APR…</td></tr>
+      <tr><td>Cue: decision</td><td>decision, delinquency, authorization, reporting, credit line…</td></tr>
+      <tr><td>Cue: display / no-effect / engagement</td><td>push towards “not a CDE”</td></tr>
+    </tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Training</th><th>Setting</th></tr></thead><tbody>
+      <tr><td>Algorithm</td><td>Full-batch gradient descent on weighted log-loss</td></tr>
+      <tr><td>Epochs · learning rate · L2</td><td>300 · 0.5 · 0.002</td></tr>
+      <tr><td>Initialisation</td><td>Zeros — every run identical</td></tr>
+      <tr><td>Steward labels</td><td>Weight ×3 (verified beats synthetic)</td></tr>
+      <tr><td>Data in this page</td><td>123 synthetic labelled fields; every 5th held out</td></tr>
+    </tbody></table></div>
+  </div>
+  <div class="callout mt"><b>Why not a large language model here?</b> Discovery runs on every field of every spec and must be reproducible and cheap to validate. A linear model with word weights is both. An approved LLM can still explain a suggestion in plain language — it never produces the score.</div>
+</section>
+
+<!-- ═════════ TRAINING DATA ═════════ -->
+<section class="view" id="data">
+  <div class="page-head"><div class="eyebrow">Training data</div><h1>What the model learns from</h1><p>123 hand-written, synthetic field records from a card-billing estate, each labelled the way a data steward would: <b>cde</b> = worth reviewing as a possible CDE, <b>not_cde</b> = not. The label is a review recommendation, never an official designation.</p></div>
+  <div class="grid g4" id="dataMetrics"></div>
+
+  <div class="section-title"><h2>How the data is split</h2></div>
+  <div class="grid g3">
+    <div class="card"><div class="kicker">Training · 99 rows</div><p>Rows are interleaved (CDE, not, CDE, not…) and four of every five go to training. The model learns its weights only from these.</p></div>
+    <div class="card"><div class="kicker">Held out · 24 rows</div><p>Every fifth interleaved row. Never trained on; scored on the Train tab. Similar wording to training, so its scores flatter the model.</p></div>
+    <div class="card"><div class="kicker">Separate test · 12 fields</div><p>Written independently and never in training (a self-check enforces it). Used for rules vs rules + model. The notebook adds a stricter split by whole topic.</p></div>
+  </div>
+  <div class="callout mt"><b>Deliberate gaps and traps.</b> Hardship-programme fields are left out so the Learn tab can show one steward decision teaching a new topic. Three “no effect on … credit” display fields were added so negated wording does not look like a decision field. Steward feedback, when recorded, is added with weight ×3.</div>
+
+  <div class="section-title"><h2>All labelled rows</h2><button class="btn sm" onclick="downloadData()">↓ CSV</button></div>
+  <div class="card">
+    <div class="row">
+      <input class="input" id="dSearch" placeholder="Search name or description" style="flex:1;min-width:200px" aria-label="Search rows">
+      <select class="select" id="dLabel" aria-label="Label filter"><option value="">All labels</option><option value="cde">cde</option><option value="not_cde">not_cde</option></select>
+      <select class="select" id="dSplit" aria-label="Split filter"><option value="">All splits</option><option value="train">Training</option><option value="holdout">Held out</option><option value="feedback">Steward feedback</option></select>
+      <select class="select" id="dScore" aria-label="Score filter"><option value="">Any model score</option><option value="wrong">Model disagrees with label</option><option value="near">Near threshold (±0.15)</option><option value="trap">“No effect” traps</option></select>
+    </div>
+    <p class="small mt" id="dCount"></p>
+    <div class="tbl-wrap mt" style="max-height:520px;overflow:auto"><table><thead><tr><th>#</th><th>Field</th><th>Description</th><th>Label</th><th>Split</th><th>Model score</th></tr></thead><tbody id="dRows"></tbody></table></div>
+  </div>
+
+  <div class="section-title" id="weightsAnchor"><h2>Learned weights</h2><p id="wMeta"></p></div>
+  <div class="card">
+    <h3>Suspicious weights</h3>
+    <p class="small">Generic words that should not, by themselves, signal criticality. Their weights come from how the synthetic descriptions happen to be worded — the evidence columns show it. Real steward labels and a split by application are the fix; never hand-edit weights.</p>
+    <div class="tbl-wrap mt"><table><thead><tr><th>Feature</th><th>Weight</th><th>In training CDE rows</th><th>In training not-CDE rows</th><th>Why it is suspicious</th></tr></thead><tbody id="suspRows"></tbody></table></div>
+  </div>
+  <div class="card mt">
+    <div class="row"><input class="input" id="wSearch" placeholder="Search features" style="flex:1;min-width:200px" aria-label="Search features"><select class="select" id="wKind" aria-label="Feature kind"><option value="">All kinds</option><option value="cue">Cues</option><option value="name">Name words</option><option value="word">All words</option></select><select class="select" id="wSort" aria-label="Sort"><option value="abs">Strongest first</option><option value="pos">Most positive</option><option value="neg">Most negative</option></select></div>
+    <p class="small mt" id="wCount"></p>
+    <div class="tbl-wrap mt" style="max-height:420px;overflow:auto"><table><thead><tr><th>Feature</th><th>Kind</th><th>Weight</th><th>CDE rows</th><th>Not-CDE rows</th></tr></thead><tbody id="wRows"></tbody></table></div>
+  </div>
+
+  <div class="section-title" id="chainAnchor"><h2>The decision chain</h2><p>Where the model acts — and where it stops</p></div>
+  <div class="card">
+    <div class="flow">
+      <div class="node"><b>1 · Rules + inventory</b><small>Decide the verdict and CDE status. Model not involved.</small></div><span class="arrow">→</span>
+      <div class="node ok"><b>2 · Model</b><small>May add a field the rules missed to the review list, with reasons. Its only decision.</small></div><span class="arrow">→</span>
+      <div class="node"><b>3 · Prove</b><small>Added fields get the same clause checks. Model not involved.</small></div><span class="arrow">→</span>
+      <div class="node"><b>4 · Steward</b><small>Nominates, rejects or asks for context. Decision becomes a label.</small></div><span class="arrow">→</span>
+      <div class="node"><b>5 · Purpose Gate</b><small>An undecided model suggestion puts a request on hold.</small></div>
+    </div>
+  </div>
+  <div class="card mt">
+    <div class="row between"><h3>Trace one field from Statement API v2.5</h3><select class="select" id="traceField" aria-label="Field to trace"></select></div>
+    <div class="timeline mt" id="trace"></div>
+  </div>
+</section>
+
+<!-- ═════════ TRAIN ═════════ -->
+<section class="view" id="train">
+  <div class="page-head"><div class="eyebrow">Live demo · train</div><h1>Train it in your browser</h1></div>
+  <div class="split">
+    <div class="card">
+      <div class="row between"><div><h2>Training</h2><p class="small" id="dataMeta"></p></div><span class="chip neutral" id="mlStatus">—</span></div>
+      <div class="row mt"><button class="btn primary" onclick="mlTrain()">⚡ Train model</button><label class="btn sm" for="mlImportFile">↑ Import notebook model<input id="mlImportFile" type="file" accept=".json"></label><button class="btn sm" onclick="mlExport()">↓ Export model</button></div>
+      <div class="grid g2 mt"><div><div class="field-label">Training loss by epoch</div><div id="mlLoss" class="chartbox"></div></div><div><div class="field-label">Holdout F1 by training size</div><div id="mlCurve" class="chartbox"></div></div></div>
+    </div>
+    <div class="card">
+      <h2>Holdout results</h2><p class="small">Every fifth synthetic example is never trained on.</p>
+      <div class="metrics mt" id="holdoutMetrics"></div><div id="confusion" class="mt"></div>
+      <div class="notice warn mt"><b>Synthetic data is easy.</b> These scores show the pipeline works. A pilot must test on real steward labels from an application the model was not trained on (the notebook shows the grouped split).</div>
+    </div>
+  </div>
+  <div class="section-title" id="compareAnchor"><h2>Rules vs rules + model</h2><div class="row"><span class="small">Threshold <b id="tVal"></b></span><input type="range" id="threshold" min="0.3" max="0.9" step="0.05" value="0.5" style="width:200px" aria-label="Review threshold"></div></div>
+  <div class="grid g4" id="compareMetrics"></div>
+  <div class="tbl-wrap mt"><table><thead><tr><th>Field</th><th>Steward label</th><th>Rules</th><th>Model score</th><th>Rules + model</th></tr></thead><tbody id="compareRows"></tbody></table></div>
+</section>
+
+<!-- ═════════ EXPLAIN ═════════ -->
+<section class="view" id="explain">
+  <div class="page-head"><div class="eyebrow">Live demo · explain</div><h1>Why did it score that?</h1><p>Type any field. The score is the bias plus the weights of the words it knows.</p></div>
+  <div class="split">
+    <div class="card"><div class="field-label">Field name</div><input class="input" id="probeName" style="width:100%" value="creditLimit" aria-label="Field name"><div class="field-label">Description</div><input class="input" id="probeDesc" style="width:100%" value="Approved credit line used in utilization and authorization" aria-label="Field description"><div class="field-label">Try</div><div class="row" id="presets"></div></div>
+    <div class="card" id="probeOut"></div>
+  </div>
+  <div class="section-title"><h2>What the model has learned</h2></div>
+  <div class="grid g2"><div class="card"><h3>Strongest signals towards CDE</h3><div id="topPos" class="mt"></div></div><div class="card"><h3>Strongest signals against</h3><div id="topNeg" class="mt"></div></div></div>
+</section>
+
+<!-- ═════════ LEARN ═════════ -->
+<section class="view" id="learn">
+  <div class="page-head"><div class="eyebrow">Live demo · learn</div><h1>Every steward decision teaches it</h1><p>The model has never seen a hardship-programme field. One steward decision, one retrain — then two related fields it has still never seen.</p></div>
+  <div class="split">
+    <div class="card">
+      <div class="row"><button class="btn" onclick="mlTeach()">Steward labels <code>hardshipPlanFlag</code> as CDE</button><button class="btn primary" onclick="mlTrain()">Retrain</button><button class="btn sm ghost" onclick="mlClear()">Clear</button></div>
+      <div class="row mt"><label class="btn sm" for="labelFile">↑ Import labels from a Radar evidence packet<input id="labelFile" type="file" accept=".json"></label></div>
+      <p class="small mt">Radar’s evidence export carries <code>ml_training_labels</code>: nominate / verify → CDE, no nomination → not CDE, request context → skipped.</p>
+      <div class="tbl-wrap mt"><table style="min-width:0"><thead><tr><th>Label</th><th>Field</th><th>Source</th></tr></thead><tbody id="feedbackRows"></tbody></table></div>
+    </div>
+    <div class="card" id="learnAnchor"><h2>Before → after</h2><p class="small">Before = trained without steward feedback · After = current model.</p><div class="tbl-wrap mt"><table style="min-width:0"><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody id="learnRows"></tbody></table></div><p class="small mt" id="learnNote"></p></div>
+  </div>
+</section>
+
+<!-- ═════════ APPLY ═════════ -->
+<section class="view" id="apply">
+  <div class="page-head"><div class="eyebrow">Live demo · apply</div><h1>Apply it to a project spec</h1><p>Rules first, then the model. See exactly which fields the model adds to the review list — and that the project verdict does not change.</p></div>
+  <div class="card">
+    <div class="row between"><div class="row"><button class="btn sm" onclick="loadSpec('extended')">Statement API v2.5</button><button class="btn sm" onclick="loadSpec('tagged')">Statement API v2.4</button></div><button class="btn primary" onclick="applyModel()">⌁ Score fields</button></div>
+    <textarea class="editor mt" id="specInput" spellcheck="false" style="min-height:200px" aria-label="Project spec"></textarea>
+  </div>
+  <div id="applyOut" class="mt"></div>
+</section>
+
+<!-- ═════════ MVP ═════════ -->
+<section class="view" id="mvp">
+  <div class="page-head"><div class="eyebrow">MVP</div><h1>MVP scope &amp; delivery</h1></div>
+  <div class="tbl-wrap"><table><thead><tr><th>In the MVP</th><th>Deliberately out</th></tr></thead><tbody>
+    <tr><td>Explainable logistic regression; same features in browser, notebook and CLI</td><td>Deep models, embeddings, LLM scoring</td></tr>
+    <tr><td>Training from scratch in a notebook on synthetic data with a grouped split</td><td>Automated retraining pipeline and scheduling</td></tr>
+    <tr><td>JSON model export/import with format and tokenizer checks</td><td>Model registry, signing, hosting</td></tr>
+    <tr><td>Steward feedback (×3 weight) and label import from Radar</td><td>Drift monitoring and alerting</td></tr>
+    <tr><td>CLI scan of pull requests (non-blocking) and a CI example</td><td>Live CI rollout across repositories</td></tr>
+  </tbody></table></div>
+  <div class="section-title"><h2>Three ways it runs — one model file</h2></div>
+  <div class="grid g3">
+    <div class="card"><h3>Notebook</h3><p class="small"><code>cde_candidate_model.ipynb</code> — generates synthetic data, trains from scratch, evaluates on unseen concepts, exports <code>cde_candidate_model.json</code>.</p></div>
+    <div class="card"><h3>Browser</h3><p class="small">This page and Radar import the JSON; scores match the notebook to about 10⁻¹⁶.</p></div>
+    <div class="card"><h3>Pull requests</h3><p class="small"><code>northstar_scan.py</code> scores the fields a PR adds and posts one non-blocking comment (<code>ci/northstar-cde-review.yml</code>).</p></div>
+  </div>
+  <div class="section-title"><h2>Build plan</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Hours</th><th>Deliverable</th><th>Exit check</th></tr></thead><tbody>
+    <tr><td>0–6</td><td>Labelled set (synthetic now; steward labels in the pilot)</td><td>Both classes, grouped by concept/application</td></tr>
+    <tr><td>6–14</td><td>Features, training, explanations</td><td>Deterministic; explanation sums to the logit</td></tr>
+    <tr><td>14–20</td><td>Rules + model on the review list; feedback loop</td><td>Verdict unchanged with and without the model</td></tr>
+    <tr><td>20–26</td><td>Notebook export, browser import, CLI parity</td><td>Identical scores across all three</td></tr>
+  </tbody></table></div>
+</section>
+
+<!-- ═════════ DEPENDENCIES ═════════ -->
+<section class="view" id="deps">
+  <div class="page-head"><div class="eyebrow">Dependencies</div><h1>Data, files &amp; model card</h1></div>
+  <div class="section-title"><h2>Labelled data contract (for real labels)</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Column</th><th>Required</th><th>Meaning</th></tr></thead><tbody>
+    <tr><td><code>application_id</code></td><td>yes</td><td>Grouped split — never one application in both train and test</td></tr>
+    <tr><td><code>name</code>, <code>description</code></td><td>name yes</td><td>Field metadata as it appears in the artifact</td></tr>
+    <tr><td><code>label</code></td><td>yes</td><td><code>cde</code> (candidate worth review) or <code>not_cde</code></td></tr>
+    <tr><td><code>labelled_by</code>, <code>labelled_at</code></td><td>yes</td><td>Provenance; allows testing on newer decisions than training</td></tr>
+  </tbody></table></div>
+  <p class="small mt">Don’t treat “untagged” as “not CDE” — it may simply be unreviewed. Measure steward agreement first; the model cannot beat it.</p>
+  <div class="section-title"><h2>Files</h2></div>
+  <div class="tbl-wrap"><table><thead><tr><th>File</th><th>Role</th></tr></thead><tbody>
+    <tr><td><code>cde_candidate_model.ipynb</code></td><td>Train from scratch, evaluate, export</td></tr>
+    <tr><td><code>cde_model_artifacts/cde_candidate_model.json</code></td><td>Exported model with threshold and model card</td></tr>
+    <tr><td><code>cde_model_artifacts/labelled_fields_template.csv</code></td><td>Template for real steward labels</td></tr>
+    <tr><td><code>northstar_scan.py</code> · <code>ci/northstar-cde-review.yml</code></td><td>Pull-request scoring and CI example</td></tr>
+  </tbody></table></div>
+  <div class="section-title"><h2>Model card</h2></div>
+  <div class="tbl-wrap"><table><tbody>
+    <tr><td><b>Intended use</b></td><td>Suggest additional CDE candidates in project artifacts for steward review. Decision support only.</td></tr>
+    <tr><td><b>Out of scope</b></td><td>Designation, policy compliance, verdicts, reuse or access decisions, anything about customers.</td></tr>
+    <tr><td><b>Training data</b></td><td>Synthetic card-billing fields with steward-style labels, plus steward feedback.</td></tr>
+    <tr><td><b>Known limits</b></td><td>Bag of words: weak on negation and abbreviations, English only; synthetic data inflates scores; unknown words fall back to the bias.</td></tr>
+    <tr><td><b>Before production</b></td><td>Real labels across applications, out-of-application test set, drift monitoring, independent validation under the bank’s model-risk policy (for example, US Fed SR 11-7).</td></tr>
+  </tbody></table></div>
+</section>
+
+<!-- ═════════ PRESENT ═════════ -->
+<section class="view" id="present">
+  <div class="page-head"><div class="eyebrow">Presenting this component</div><h1>About 60 seconds</h1></div>
+  <div class="split"><div class="card"><div class="row between"><h2>Script</h2><div class="row"><span class="mono" id="timer" style="font-size:20px;font-weight:700">0:00</span><button class="btn sm primary" id="timerBtn" onclick="toggleTimer()">Start</button><button class="btn sm" onclick="resetTimer()">Reset</button></div></div><div class="timeline mt" id="pitchLine"></div></div>
+  <div class="card"><div class="kicker">Line to land</div><h2 style="font-size:22px;line-height:1.3">“The model can put a field on the review list. It can never take one off, and it never decides.”</h2></div></div>
+  <div class="section-title"><h2>Questions judges may ask</h2></div><div id="qa"></div>
+</section>
+
+<!-- ═════════ CHECKS ═════════ -->
+<section class="view" id="checks">
+  <div class="page-head"><div class="eyebrow">Quality</div><h1>Self-checks</h1><p>Determinism, leakage, explanations, steward feedback and the guardrails in the combined pipeline.</p></div>
+  <div class="row"><button class="btn primary" onclick="renderChecks()">Run checks</button><span class="small" id="checkSummary"></span></div>
+  <div class="tbl-wrap mt"><table><thead><tr><th>#</th><th>Area</th><th>Assertion</th><th>Result</th></tr></thead><tbody id="checkRows"></tbody></table></div>
+</section>
+
+    </div>
+  </main>
+</div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-box"><div class="row between"><div><div class="eyebrow" id="modalEye"></div><h2 id="modalTitle" style="margin-top:6px"></h2></div><button class="btn sm" onclick="closeModal()" aria-label="Close">✕</button></div><div id="modalBody" class="mt"></div></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="demo-bar hidden" id="demoBar" role="region" aria-label="Guided walkthrough"><div><span class="pill-num" id="demoNum"></span> <b id="demoTitle"></b><p id="demoText"></p></div><div class="row"><button class="btn sm" onclick="stepDemo(-1)">Back</button><button class="btn sm primary" onclick="stepDemo(1)">Next</button><button class="btn sm ghost" onclick="$('demoBar').classList.add('hidden')">Exit</button></div></div>
+<script id="engine">
+/* All fixtures, policies, IDs and thresholds are synthetic. Shared with cde_idea.html; see build notes. */
+const FIXTURE_DATE='2026-10-21';
+const clone=o=>JSON.parse(JSON.stringify(o));
+const norm=v=>String(v).replace(/[^a-z0-9]/gi,'').toLowerCase();
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function isISODate(v){return typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v}
+function daysBetween(a,b){return (Date.parse(a)-Date.parse(b))/86400000}
+
+const OPENAPI={openapi:'3.0.3',info:{title:'Northstar Card Billing',version:'2.4.0'},
+ paths:{'/statements':{get:{responses:{'200':{description:'Synthetic statement',content:{'application/json':{schema:{$ref:'#/components/schemas/Statement'}}}}}}}},
+ components:{schemas:{Statement:{type:'object',required:['statementBalance','paymentDueDate'],properties:{
+  statementBalance:{type:'number',description:'USD amount owed at statement close; authoritative input to autopay.',example:1250.75},
+  paymentDueDate:{type:'string',format:'date',description:'Payment deadline drives late fee and delinquency decisions.',example:'2026-11-12'},
+  customerEmail:{type:'string',format:'email',description:'Optional servicing contact; use for reminder notices only.',example:'alex@example.test'},
+  rewardsNickname:{type:'string',description:'Display-only label; no effect on billing or credit decisions.',example:'Weekend card'}}}}}};
+
+const CONTEXT={application_id:'APP-CARDS-101',application_name:'Northstar Card Billing',business_use:'U.S. consumer card billing and autopay',assessment_date:FIXTURE_DATE,
+ inventory:{source:'SYNTHETIC application CDE catalog export',snapshot_date:'2026-10-20',application_id:'APP-CARDS-101',complete_for_application:true,records:[
+  {field:'statementBalance',cde_id:'DEMO-CDE-042',status:'approved',owner:'Cards Finance',approval_ref:'DEMO-ATT-42',review_due:'2026-12-31',expected_type:'number'},
+  {field:'legacyMinimumPayment',cde_id:'DEMO-CDE-043',status:'approved',owner:'Cards Finance',approval_ref:'DEMO-ATT-43',review_due:'2026-06-30'}]},
+ policy_pack:{id:'DEMO-DG',version:'0.2',source:'Synthetic control pack; NOT Citi policy',effective_from:'2026-01-01',review_due:'2026-12-31',rules:[
+  {id:'DEMO-DG §1',name:'Accountable owner',attribute:'owner',test:'present',action:'Confirm the accountable owner with the domain steward.'},
+  {id:'DEMO-DG §2',name:'Trusted source reference',attribute:'trusted_source',test:'present',action:'Document and verify the source designation.'},
+  {id:'DEMO-DG §3',name:'Field lineage evidence',attribute:'lineage_ref',test:'present',action:'Link source, transformation and consumer field lineage.'},
+  {id:'DEMO-DG §4',name:'Quality control evidence',attribute:'dq_ref',test:'present',action:'Define completeness, validity, timeliness and reconciliation tests.'},
+  {id:'DEMO-DG §5',name:'Current test passed',attribute:'dq_pass',test:'equals_true',action:'Investigate the failed test and attach a successful rerun.'},
+  {id:'DEMO-DG §6',name:'Evidence age ≤30 days',attribute:'tested_at',test:'age_days',limit:30,action:'Refresh the evidence and verify the test period.'}]},
+ controls:{
+  statementBalance:{owner:'Cards Finance',trusted_source:'DEMO-LEDGER-01',lineage_ref:null,dq_ref:'DEMO-DQ-42',dq_pass:false,tested_at:'2026-08-01'},
+  paymentDueDate:{owner:null,trusted_source:'DEMO-LEDGER-01',lineage_ref:'DEMO-LIN-43',dq_ref:null,dq_pass:null,tested_at:null}},
+ use_profiles:[
+  {purpose:'billing_reminders',label:'Billing reminders',status:'approved',owner:'Cards Servicing',fields:['paymentDueDate','statementBalance','customerEmail'],max_retention_days:30,protection:'mask in logs and delete after sending'},
+  {purpose:'servicing_analytics',label:'Servicing analytics',status:'approved',owner:'Cards Finance',fields:['statementBalance','paymentDueDate','creditLimit','aprPercent'],max_retention_days:90,protection:'aggregate before sharing'}],
+ strategy:{source:'Synthetic proposed alignment criteria; replace with approved internal data strategy',domain_model_ref:'DEMO-CARDS-MODEL-2',reuses_existing_product:true,new_authoritative_copy:true}};
+
+const SCENARIOS=[
+ {id:'extended',group:'Core',label:'Card billing v2.5 · full story',expect:'YES',desc:'The end-to-end story: v2.5 adds creditLimit, aprPercent, hardshipProgramCode, cardArtId and lastLoginAt. Rules find the balance tag and the due-date candidate; the model adds creditLimit and aprPercent.'},
+ {id:'tagged',group:'Core',label:'Existing CDE + control gaps',expect:'YES',desc:'The demonstration case: approved balance with failed controls, untagged due-date candidate, sensitive email, display-only nickname, and a legacy tag outside the submitted scope.'},
+ {id:'candidate',group:'Core',label:'New candidate only',expect:'POTENTIAL',desc:'Same API with an empty inventory: nothing is tagged yet, so balance and due date surface as untagged candidates.'},
+ {id:'benign',group:'Core',label:'No signal in scope',expect:'NO',desc:'Two explicitly display-only fields and a complete, current inventory declaration. NO applies to this scope only.'},
+ {id:'ambiguous',group:'Core',label:'Ambiguous input',expect:'POTENTIAL',desc:'A bare JSON sample with no names or descriptions. Missing context can hide a CDE, so the answer is POTENTIAL, not NO.'},
+ {id:'wrongApp',group:'Challenge',label:'Wrong-application inventory',expect:'POTENTIAL',desc:'The inventory export belongs to APP-CARDS-207. The balance tag must be verified, not inherited; controls become UNKNOWN.'},
+ {id:'duplicate',group:'Challenge',label:'Duplicate tag',expect:'POTENTIAL',desc:'Two approved records (DEMO-CDE-042 and DEMO-CDE-117) claim statementBalance. Identity must be resolved before any control result counts.'},
+ {id:'expired',group:'Challenge',label:'Expired approval',expect:'POTENTIAL',desc:'The balance approval review date (2026-09-30) has passed. The tag needs re-verification before it can be relied on.'},
+ {id:'alteredType',group:'Challenge',label:'Altered type',expect:'POTENTIAL',desc:'The API now declares statementBalance as a string, while the inventory expects a number. Same name, possibly different meaning.'}];
+
+const EXTENDED_FIELDS={
+ creditLimit:{type:'number',description:'Approved credit line used in utilization and authorization'},
+ aprPercent:{type:'number',description:'Annual percentage rate applied to purchases'},
+ hardshipProgramCode:{type:'string',description:'Hardship program assigned to the account'},
+ cardArtId:{type:'string',description:'Card design image identifier; display-only'},
+ lastLoginAt:{type:'string',format:'date-time',description:'Time of the most recent app sign-in'}};
+function scenario(id){
+ const ctx=clone(CONTEXT);let api=clone(OPENAPI);
+ if(id==='extended'){api.info.version='2.5.0';Object.assign(api.components.schemas.Statement.properties,clone(EXTENDED_FIELDS))}
+ if(id==='candidate')ctx.inventory.records=[];
+ if(id==='benign'){ctx.inventory.records=[];api={type:'object',properties:{themeColor:{type:'string',description:'Display only: visual theme selection'},displayLabel:{type:'string',description:'Decorative label for the interface'}}};}
+ if(id==='ambiguous'){ctx.inventory.records=[];api={field_a:12.45,field_b:'x'};}
+ if(id==='wrongApp')ctx.inventory.application_id='APP-CARDS-207';
+ if(id==='duplicate')ctx.inventory.records.push({field:'statementBalance',cde_id:'DEMO-CDE-117',status:'approved',owner:'Cards Servicing',approval_ref:'DEMO-ATT-117',review_due:'2027-03-31',expected_type:'number'});
+ if(id==='expired')ctx.inventory.records[0].review_due='2026-09-30';
+ if(id==='alteredType')api.components.schemas.Statement.properties.statementBalance.type='string';
+ return {input:JSON.stringify(api,null,2),context:ctx};
+}
+
+/* Discovery rules. `critical` marks a CDE candidate; non-critical rules flag sensitivity only. */
+const FIELD_RULES=[
+ {id:'balance',names:['statementbalance','closingbalance','currentbalance','balance','amountdue'],description:/amount owed|statement balance|autopay/i,critical:true,reason:'Monetary value may affect billing or payment execution. Confirm the exact business definition and material use.',units:'USD major units',tests:['required numeric value','currency equals USD','reconcile to source in minor units']},
+ {id:'due',names:['paymentduedate','duedate'],description:/payment deadline|payment due|delinquency/i,critical:true,reason:'Payment deadline can affect late fees and delinquency decisions; validate the consumer use and effective calendar.',units:'calendar date',tests:['ISO calendar date','authoritative business calendar','no missing date in billing records']},
+ {id:'minimum',names:['minimumpayment','minimumpaymentdue'],description:/minimum payment/i,critical:true,reason:'Payment obligation may directly affect customer treatment.',units:'USD major units',tests:['reconcile minimum-payment calculation']},
+ {id:'credit',names:['creditscore','fico'],description:/credit decision|credit score/i,critical:true,reason:'A decision input may be material to credit outcomes; steward must validate context.',units:'model-dependent',tests:['approved score range and model version']},
+ {id:'pan',names:['pan','primaryaccountnumber','cardnumber'],description:/full payment card|primary account number/i,critical:false,reason:'Sensitive payment identifier. CDE status cannot be inferred from sensitivity alone.',units:'identifier',tests:['tokenization or masking review']},
+ {id:'email',names:['email','customeremail'],description:/email address|servicing contact/i,critical:false,reason:'Contact data needs purpose and sensitivity controls; it is not automatically a CDE.',units:'contact',tests:['permitted contact use review']},
+ {id:'ssn',names:['ssn','socialsecuritynumber','taxid'],description:/social security|tax identifier/i,critical:false,reason:'Sensitive identity data needs access and usage controls; criticality still requires business context.',units:'identifier',tests:['sensitivity and access review']}];
+
+function extractFields(raw){
+ const fields=[],warnings=[];
+ const add=(field,path,type,description,required)=>{if(!fields.some(f=>f.path===path))fields.push({field,path,type:type||'unknown',description:description||'',required:!!required})};
+ const t=raw.trim();
+ if(t.startsWith('{')||t.startsWith('[')){
+  let root;try{root=JSON.parse(t)}catch(e){throw new Error('JSON could not be parsed: '+e.message)}
+  const isSpec=!!(root&&typeof root==='object'&&(root.openapi||root.swagger||root.$schema));
+  const visit=(v,path,refs,depth)=>{
+   if(depth>32){warnings.push('Maximum nesting reached; coverage is incomplete.');return}
+   if(!v||typeof v!=='object')return;
+   if(Array.isArray(v)){v.slice(0,20).forEach((x,i)=>visit(x,path+'['+i+']',refs,depth+1));return}
+   if(typeof v.$ref==='string'){
+    const ref=v.$ref;
+    if(!ref.startsWith('#/')){warnings.push('External reference not fetched: '+ref);return}
+    if(refs.includes(ref)){warnings.push('Recursive reference skipped: '+ref);return}
+    const target=ref.slice(2).split('/').reduce((o,k)=>o&&o[k.replace(/~1/g,'/').replace(/~0/g,'~')],root);
+    if(!target){warnings.push('Unresolved reference: '+ref);return}
+    // A referenced schema gets its own path root, so one schema used by several operations is listed once.
+    visit(target,ref.split('/').pop(),refs.concat(ref),depth+1);return;
+   }
+   if(v.properties&&typeof v.properties==='object'){
+    for(const [k,val] of Object.entries(v.properties)){
+     if(!val||typeof val!=='object')continue;
+     const p=path+'.'+k;
+     add(k,p,val.type||(val.$ref?'object':''),val.description,Array.isArray(v.required)&&v.required.includes(k));
+     visit(val,p,refs,depth+1);
+    }
+    return;
+   }
+   if(v.type==='array'&&v.items){visit(v.items,path+'[]',refs,depth+1);return}
+   for(const kw of ['allOf','oneOf','anyOf'])if(Array.isArray(v[kw]))v[kw].forEach(part=>visit(part,path,refs,depth+1));
+   if(typeof v.type==='string'||v.format)return;
+   for(const [k,val] of Object.entries(v)){
+    if(['info','example','examples','description','required','servers','tags','security','allOf','oneOf','anyOf'].includes(k))continue;
+    if(isSpec&&depth===0&&['components','definitions','$defs'].includes(k))continue;
+    if(val&&typeof val==='object')visit(val,isSpec?path:path+'.'+k,refs,depth+1);
+    else if(!isSpec)add(k,path+'.'+k,typeof val,'',false);
+   }
+  };
+  visit(root,'$',[],0);
+  return {fields,warnings,mode:'JSON / OpenAPI with local $ref resolution'};
+ }
+ const lines=raw.split(/\r?\n/),isSQL=/\bselect\b/i.test(raw);
+ const skip=['type','format','description','properties','required','info','title','version','openapi','paths','responses','schema','content','example'];
+ lines.forEach((line,i)=>{
+  const m=line.match(/^\s*(?:-\s*)?([A-Za-z_]\w*)\s*:/);
+  if(m&&!skip.includes(m[1])){const d=(lines.slice(i,i+5).find(x=>/description\s*:/.test(x))||line).trim();add(m[1],'line '+(i+1),'unverified',d)}
+  if(isSQL){for(const rule of FIELD_RULES)for(const alias of rule.names){const re=new RegExp('\\b'+alias.split('').map(c=>c+'_?').join('')+'\\b','i');const hit=line.match(re);if(hit)add(hit[0],'line '+(i+1)+' · '+hit[0],'unverified',line.trim())}}
+  if(!m&&!isSQL){const x=line.match(/^\s*([A-Za-z_]\w*)\s*(?:-|=|\s)\s*(.+)$/);if(x)add(x[1],'line '+(i+1),'unverified',x[2])}
+ });
+ warnings.push('Limited text extraction; nested YAML, SQL aliases/expressions and full lineage need a production parser.');
+ return {fields,warnings,mode:'Limited YAML / SQL / description scan'};
+}
+
+function validContext(c){
+ if(!c||!c.application_id||!c.inventory||!Array.isArray(c.inventory.records)||!c.policy_pack||!Array.isArray(c.policy_pack.rules)||!c.controls||typeof c.controls!=='object'||!c.strategy)throw new Error('Context requires application_id, inventory.records, policy_pack.rules, controls and strategy. Use the template.');
+ if([c.assessment_date,c.inventory.snapshot_date,c.policy_pack.effective_from,c.policy_pack.review_due].some(d=>!isISODate(d)))throw new Error('Context dates must be valid ISO dates (YYYY-MM-DD).');
+ if(c.inventory.records.some(r=>!r||typeof r.field!=='string'))throw new Error('Each inventory record needs a field name.');
+ if(c.policy_pack.rules.length>50||c.inventory.records.length>2000)throw new Error('Demo limit: 50 policy rules and 2,000 inventory records.');
+ if(c.policy_pack.rules.some(r=>!r||!r.id||!r.attribute||!['present','equals_true','age_days'].includes(r.test)))throw new Error('Each policy rule needs an id, attribute and a supported test: present, equals_true or age_days.');
+ if(c.policy_pack.rules.some(r=>r.test==='age_days'&&(!Number.isFinite(r.limit)||r.limit<0)))throw new Error('age_days rules need a non-negative numeric limit.');
+}
+
+function fieldAction(f,c){
+ const ownerOf=()=>((c.controls[f.field]||{}).owner)||(f.record&&f.record.owner)||'Unassigned';
+ if(f.status==='EXISTING APPROVED (snapshot)')return {who:ownerOf(),what:'Keep tag; resolve any control gaps. Next approval review '+f.record.review_due+'.'};
+ if(f.status==='CONFLICTING INVENTORY RECORDS')return {who:'Domain steward',what:'Resolve duplicate records '+f.conflicts.join(' / ')+' before relying on either.'};
+ if(f.status==='EXISTING TAG NEEDS VERIFICATION')return {who:'Domain steward',what:'Re-verify mapping: '+f.mappingIssues.join('; ')+'.'};
+ if(f.status==='POSSIBLE INVENTORY MATCH')return {who:'Domain steward',what:'Confirm alias identity for '+f.possible.map(r=>r.cde_id).join(', ')+'.'};
+ if(f.status==='UNTAGGED CANDIDATE')return {who:'Domain steward',what:'Assess nomination; control owner attaches evidence for the contract.'};
+ if(f.status==='SENSITIVE / CONTEXT REVIEW')return {who:'Data owner',what:'Confirm permitted use and protection; CDE status needs business context.'};
+ return {who:'—',what:'No action for this use; reassess when fields or business use change.'};
+}
+
+function analyze(raw,c,opts){
+ validContext(c);
+ const ex=extractFields(raw);
+ if(!ex.fields.length)throw new Error('No fields found. Use JSON/OpenAPI, or one field description per line.');
+ if(ex.fields.length>1000)throw new Error('Demo supports at most 1,000 discovered field paths.');
+ const scope=c.inventory.application_id===c.application_id;
+ const snapAge=daysBetween(c.assessment_date,c.inventory.snapshot_date),fresh=snapAge>=0&&snapAge<=30;
+ const packCurrent=c.policy_pack.effective_from<=c.assessment_date&&c.policy_pack.review_due>=c.assessment_date;
+ const findings=ex.fields.map(f=>{
+  const displayOnly=/display.only|decorative|no effect on/i.test(f.description);
+  const rule=FIELD_RULES.find(r=>r.names.includes(norm(f.field)))||(!displayOnly?FIELD_RULES.find(r=>r.description.test(f.description)):undefined);
+  const uniqueName=ex.fields.filter(x=>x.field===f.field).length===1;
+  const exact=c.inventory.records.filter(r=>r.path?r.path===f.path:(r.field===f.field&&uniqueName));
+  const possible=exact.length?[]:c.inventory.records.filter(r=>norm(r.field)===norm(f.field)||(Array.isArray(r.aliases)&&r.aliases.some(a=>norm(a)===norm(f.field))));
+  const record=exact.length===1?exact[0]:null;
+  const typeMatch=!record||!record.expected_type||record.expected_type===f.type;
+  const mappingIssues=[];
+  if(record){
+   if(!scope)mappingIssues.push('inventory belongs to '+c.inventory.application_id+', not '+c.application_id);
+   if(!fresh)mappingIssues.push('inventory snapshot outside the 30-day window');
+   if(!typeMatch)mappingIssues.push('submitted type '+f.type+' ≠ expected '+record.expected_type);
+   if(record.status!=='approved')mappingIssues.push('record status is '+record.status);
+   if(!record.cde_id||!record.approval_ref)mappingIssues.push('approval reference missing');
+   if(!isISODate(record.review_due)||record.review_due<c.assessment_date)mappingIssues.push('approval review date '+record.review_due+' has passed');
+  }
+  const approved=!!record&&!mappingIssues.length;
+  const status=approved?'EXISTING APPROVED (snapshot)':exact.length>1?'CONFLICTING INVENTORY RECORDS':record?'EXISTING TAG NEEDS VERIFICATION':possible.length?'POSSIBLE INVENTORY MATCH':rule&&rule.critical?'UNTAGGED CANDIDATE':rule?'SENSITIVE / CONTEXT REVIEW':'NO CDE SIGNAL';
+  const strength=approved?95:(exact.length||possible.length)?65:rule&&rule.critical?(f.description?82:62):rule?45:25;
+  const out={...f,rule,record,possible,conflicts:exact.length>1?exact.map(r=>r.cde_id):[],mappingIssues,status,approved,typeMatch,uniqueName,strength,
+   needsCDE:approved||exact.length>0||possible.length>0||!!(rule&&rule.critical)};
+  out.action=fieldAction(out,c);
+  return out;
+ });
+ const unmatched=c.inventory.records.filter(r=>!findings.some(f=>f.record===r||(f.conflicts.length&&f.conflicts.includes(r.cde_id))));
+ const controls=[];
+ for(const f of findings.filter(x=>x.needsCDE||(opts&&opts.extra&&opts.extra.has(x.field)))){
+  const evidence=c.controls[f.field]||{};
+  for(const r of c.policy_pack.rules){
+   const value=evidence[r.attribute];let result='UNKNOWN',why='Evidence missing';
+   if(f.conflicts.length)why='Conflicting inventory records; resolve identity first';
+   else if(!f.uniqueName)why='Field name appears at several paths; path-specific evidence required';
+   else if(!f.typeMatch)why='Submitted type differs from inventory expected_type';
+   else if(!packCurrent)why='Policy pack outside its declared effective/review dates';
+   else if(!scope)why='Application and inventory scopes differ';
+   else if(value!==null&&value!==undefined&&value!==''){
+    if(r.test==='present'){result='PASS';why='Declared reference present; source not authenticated'}
+    if(r.test==='equals_true'){result=value===true?'PASS':'FAIL';why='Declared result = '+String(value)}
+    if(r.test==='age_days'){const age=isISODate(value)?daysBetween(c.assessment_date,value):NaN;result=Number.isFinite(age)&&age>=0&&age<=r.limit?'PASS':'FAIL';why='Evidence age '+(Number.isFinite(age)?Math.round(age)+' days (limit '+r.limit+')':'invalid date')}
+   }
+   controls.push({field:f.field,path:f.path,clause:r.id,requirement:r.name||r.attribute,status:result,evidence:r.attribute+' = '+JSON.stringify(value===undefined?null:value),why,action:r.action||'Owner to resolve and attach evidence.'});
+  }
+ }
+ const yes=findings.some(f=>f.approved),potential=findings.some(f=>f.needsCDE||f.rule);
+ const clearlyBenign=findings.every(f=>/display.only|decorative|visual theme/i.test(f.description));
+ const noOK=!potential&&clearlyBenign&&scope&&fresh&&c.inventory.complete_for_application===true&&!ex.warnings.length;
+ const verdict=yes?'YES':noOK?'NO':'POTENTIAL';
+ const reason=yes?'An existing approved CDE matches the supplied application snapshot. Imported approval is not independently authenticated.':noOK?'No candidate in the supplied, explicitly display-only scope. Reassess when fields or business use change.':'Candidate, sensitive, ambiguous or incomplete evidence requires steward assessment.';
+ const s=c.strategy;
+ const strategy=[
+  {criterion:'Canonical domain semantics',status:s.domain_model_ref?'EVIDENCE PRESENT':'UNKNOWN',evidence:s.domain_model_ref||'Domain mapping missing',action:'Verify the mapping against the approved domain model.'},
+  {criterion:'Reuse an existing data product',status:s.reuses_existing_product===true?'ALIGNED':s.reuses_existing_product===false?'REVIEW':'UNKNOWN',evidence:'Declared reuse = '+String(s.reuses_existing_product),action:'Document why a new product is needed if reuse is unsuitable.'},
+  {criterion:'Avoid a competing authoritative copy',status:s.new_authoritative_copy===true?'REVIEW':s.new_authoritative_copy===false?'ALIGNED':'UNKNOWN',evidence:'Declared new copy = '+String(s.new_authoritative_copy),action:'Confirm authoritative source designation with architecture.'}];
+ const warnings=ex.warnings.concat(!scope?['Inventory belongs to a different application ('+c.inventory.application_id+').']:[],!fresh?['Inventory snapshot is outside the 30-day validity window.']:[],!packCurrent?['Policy pack version needs effective-date review.']:[]);
+ return {context:c,findings,unmatched,controls,strategy,verdict,reason,strength:yes?95:noOK?70:Math.max(...findings.map(f=>f.strength)),warnings,mode:ex.mode,scope,fresh,packCurrent};
+}
+
+function remediatedContext(a){
+ const c=clone(a.context);
+ a.findings.filter(f=>f.needsCDE||f.mlSuggested).forEach(f=>{c.controls[f.field]={owner:(c.controls[f.field]||{}).owner||'Cards Finance (demo)',trusted_source:'DEMO-LEDGER-01',lineage_ref:'DEMO-LIN-'+f.field,dq_ref:'DEMO-DQ-'+f.field,dq_pass:true,tested_at:c.assessment_date}});
+ c.strategy.new_authoritative_copy=false;
+ return c;
+}
+
+function buildContract(a,review){
+ const c=a.context;
+ return {version:'draft-0.2',application_id:c.application_id,status:'proposed_not_approved',assessment_date:c.assessment_date,
+  official_classification_source:'supplied inventory snapshot only; no automatic approval',
+  policy_pack:{id:c.policy_pack.id,version:c.policy_pack.version,source:c.policy_pack.source},project_determination:a.verdict,
+  fields:a.findings.map(f=>({name:f.field,path:f.path,type:f.type,required:f.required,cde_status:f.status,existing_cde_id:f.record?f.record.cde_id:null,
+   units:f.rule?f.rule.units:'to_confirm',proposed_checks:f.rule?f.rule.tests:['confirm business meaning'],owner:(c.controls[f.field]||{}).owner||'unassigned',permitted_use:c.business_use||'to_confirm'})),
+  use_profiles:(c.use_profiles||[]).map(p=>({purpose:p.purpose,label:p.label,owner:p.owner,fields:p.fields,max_retention_days:p.max_retention_days})),release_conditions:['Steward verifies candidate and imported classifications','Producer and consumer approve semantics and SLOs','Resolve FAIL/UNKNOWN controls or attach an authorized, time-bound exception'],
+  control_findings:a.controls.filter(r=>r.status!=='PASS'),review_log:review||[],real_systems_updated:false};
+}
+
+/* Evaluation illustration: 12 synthetic fields with steward labels. */
+const EVAL_SET=[
+ ['statementBalance','USD amount owed at statement close; input to autopay','cde'],
+ ['paymentDueDate','Payment deadline that drives late fees and delinquency','cde'],
+ ['minimumPaymentDue','Minimum payment required this cycle','cde'],
+ ['closingBalance','Balance at billing-cycle close','cde'],
+ ['fico','Bureau score used in credit line decisions','cde'],
+ ['creditLimit','Approved credit line used in utilization and authorization','cde'],
+ ['aprPercent','Annual percentage rate applied to purchases','cde'],
+ ['customerEmail','Servicing contact for reminder notices','not_cde'],
+ ['rewardsNickname','Display-only label; no effect on billing or credit','not_cde'],
+ ['themeColor','Display only: visual theme selection','not_cde'],
+ ['cardArtId','Card design image identifier; display-only','not_cde'],
+ ['lastLoginAt','Time of the most recent app sign-in','not_cde']];
+function evaluateEngine(){
+ const props={};EVAL_SET.forEach(([n,d])=>props[n]={type:'string',description:d});
+ const ctx=clone(CONTEXT);ctx.inventory.records=[];
+ const a=analyze(JSON.stringify({type:'object',properties:props}),ctx);
+ const rows=EVAL_SET.map(([n,d,label])=>{const f=a.findings.find(x=>x.field===n);const pred=f.needsCDE?'cde':'not_cde';
+  return {field:n,description:d,label,predicted:pred,engine_status:f.status,outcome:label==='cde'?(pred==='cde'?'TP':'FN'):(pred==='cde'?'FP':'TN')}});
+ const k=o=>rows.filter(r=>r.outcome===o).length,tp=k('TP'),fp=k('FP'),fn=k('FN');
+ return {rows,tp,fp,fn,tn:k('TN'),precision:tp+fp?tp/(tp+fp):null,recall:tp+fn?tp/(tp+fn):null};
+}
+
+/* Candidate model: logistic regression on field-name words, description words and four domain cue features.
+   Trained on synthetic steward-style labels; it may only ADD fields to the review list, never decide. */
+const ML_CDE=`statementBalanceAmt|Balance owed on the statement used to calculate payments
+currentBalance|Outstanding balance on the card account at end of day
+newBalance|New balance printed on the monthly statement
+previousBalance|Prior cycle balance carried into the statement calculation
+outstandingPrincipal|Principal amount owed used for interest calculation
+totalAmountDue|Total amount the customer must pay by the due date
+minPayDue|Minimum amount due to keep the account current
+minimumPaymentAmount|Required minimum payment calculated each billing cycle
+pastDueAmount|Amount past due that drives delinquency treatment
+daysPastDue|Number of days the payment is late; drives delinquency bucket
+delinquencyBucket|Delinquency stage used for collections and reporting
+dueDate|Date by which payment must be received to avoid a late fee
+nextPaymentDueDate|Upcoming payment deadline used for late fee assessment
+cycleCloseDate|Billing cycle close date used to produce the statement
+statementCloseDate|Date the statement closes; determines interest and fees
+gracePeriodEndDate|Last day of the grace period before interest accrues
+lateFeeAmount|Late fee charged when the minimum payment is missed
+annualFeeAmount|Annual fee charged to the card account
+feeCharged|Fee amount assessed on the account during the cycle
+interestCharged|Interest amount charged on revolving balances
+purchaseInterestRate|Interest rate applied to purchase balances
+cashAdvanceApr|Annual percentage rate applied to cash advances
+penaltyApr|Penalty annual percentage rate after missed payments
+promoRatePercent|Promotional annual percentage rate on balance transfers
+balanceTransferRate|Rate applied to transferred balances
+dailyPeriodicRate|Periodic rate used to compute daily interest
+creditLineAmount|Total credit line assigned to the account; used in authorization
+availableCredit|Remaining credit available for purchase authorization
+cashAdvanceLimit|Maximum cash advance amount authorized on the account
+temporaryLimitIncrease|Temporary increase to the approved credit line
+overLimitAmount|Amount by which the balance exceeds the approved credit line
+creditUtilizationRatio|Balance divided by credit line used in risk decisions
+riskScore|Internal risk score used in credit line decisions
+bureauScore|Credit bureau score used in underwriting decisions
+behaviorScore|Behavior score that drives credit line management decisions
+probabilityOfDefault|Model estimate used in loss reserving and credit decisions
+chargeOffAmount|Amount charged off and reported in loss reporting
+chargeOffDate|Date the balance was charged off for regulatory reporting
+recoveryAmount|Amount recovered after charge-off used in loss reporting
+autopayAmount|Amount drafted by autopay from the customer bank account
+paymentAmount|Amount of the customer payment posted to the account
+paymentPostedDate|Date a payment posted; determines on-time status
+paymentStatus|Status of the payment used in delinquency decisions
+accountStatus|Account status code that controls authorization and reporting
+regulatoryReportCode|Code used in regulatory reporting of the account
+reserveAmount|Loss reserve amount reported in financial statements
+glAccountBalance|General ledger balance reconciled to financial reporting
+transactionAmount|Posted transaction amount in USD that updates the balance
+postedAmount|Amount posted to the ledger for the transaction
+disputeAmount|Disputed amount withheld from the balance under regulation
+rewardsLiability|Rewards points liability reported in financial statements
+interestAccrued|Accrued interest amount booked to the ledger
+minimumDueDate|Deadline for the minimum payment; drives late fees
+creditDecisionCode|Outcome code of the credit decision for the application
+underwritingIncome|Stated income used in underwriting and credit decisions
+collateralValue|Collateral value used in credit exposure reporting
+exposureAtDefault|Exposure amount used in capital reporting
+settlementAmount|Amount settled with the network and reconciled to the ledger
+feeWaiverAmount|Amount of fees waived that adjusts the balance
+creditLimitChangeDate|Date the approved credit line changed`;
+const ML_NOT=`displayName|Name shown in the app header; display only
+nickname|Customer-chosen label shown in the app; cosmetic
+cardNickname|Display-only nickname for the card; no effect on billing
+themePreference|Visual theme preference for the interface
+fontSize|Preferred font size for the mobile app
+languagePreference|Preferred display language for screens
+avatarUrl|Profile picture link shown in the app
+cardImageId|Card artwork image identifier; display only
+backgroundImage|Decorative background image for the dashboard
+tileOrder|Order of tiles on the home screen
+lastLoginTime|Time of the last sign-in to the app
+sessionId|Identifier of the current app session
+deviceType|Type of device used to sign in
+appVersion|Version of the mobile app installed
+pushToken|Token for sending push notifications to the device
+browserAgent|Browser user agent captured for troubleshooting
+pageViewCount|Number of pages viewed in the session
+clickstreamId|Identifier for web analytics events
+lastScreenViewed|Last screen the user opened in the app
+tutorialCompleted|Whether the onboarding tutorial was finished
+marketingOptIn|Whether the customer agreed to receive marketing messages
+campaignCode|Code of the marketing campaign that referred the visit
+promoBannerId|Identifier of the promotional banner shown
+surveyResponse|Free-text answer to a satisfaction survey
+npsScore|Net promoter score from a customer survey
+contactEmail|Email used for servicing messages and reminders
+emailAddress|Customer email address for notices
+mobilePhone|Phone number for text reminders
+homePhone|Home phone number for servicing calls
+mailingAddressLine|Street address for paper mail
+preferredContactTime|Preferred time for servicing calls
+reminderChannel|Channel used to send reminder notices
+notificationEnabled|Whether alerts are switched on in the app
+alertThreshold|Customer-set threshold that triggers a spending alert notification
+paperlessFlag|Whether the customer chose electronic delivery
+statementFormat|Layout preference for the statement PDF
+helpArticleId|Identifier of a help center article viewed
+chatTranscriptId|Identifier of a support chat transcript
+agentNotes|Free-text notes left by a service agent
+callReasonCode|Reason selected for a servicing call
+favoriteMerchant|Merchant the customer marked as favorite
+merchantLogoUrl|Logo image shown next to transactions
+categoryIcon|Icon shown for a spending category
+spendingCategoryLabel|Label of the budgeting category chosen by the customer
+budgetGoalName|Name of a personal budgeting goal
+widgetLayout|Layout of widgets on the dashboard
+darkModeEnabled|Whether dark mode is enabled in the app
+lastPasswordChange|Time the password was last changed
+mfaMethod|Preferred sign-in verification method
+loginAttempts|Number of sign-in attempts in the session
+cardDesignCode|Code of the card design chosen by the customer
+referralCode|Code shared to refer a friend
+socialHandle|Social media handle provided by the customer
+birthdayGreetingSent|Whether a birthday greeting message was sent
+appRating|Rating the customer gave the mobile app
+featureFlag|Feature toggle for an experimental screen
+sortPreference|Preferred sort order for the transaction list
+searchQuery|Text the customer searched for in the app
+cardArtVersion|Version of the card art asset; display only
+welcomeMessage|Welcome text shown on first login
+cardColorChoice|Color choice for the card face; no effect on credit decisions
+statementHeaderLabel|Label printed in the statement header; no effect on billing
+rewardsTierName|Display name of the rewards tier; does not affect credit or payments`;
+const ML_STOP=new Set('the an of to for on in by and or is that when with from each was be after before into at as this its it are has have no not any per which whether'.split(' '));
+const ML_CUES=[['cue:money',/\b(amount|balance|balances|usd|fee|fees|interest|rate|apr|ledger|payment|principal)\b/],['cue:decision',/(decision|delinquen|authoriz|underwrit|regulat|reporting|reconcil|charge.?off|capital|credit line)/],['cue:display',/(display|decorative|cosmetic|icon|image|logo|theme|layout|artwork)/],["cue:no-effect",/(no effect on|does not affect|not used (in|for))/],['cue:engagement',/(notification|reminder|alert|survey|marketing|session|sign-in|login)/]];
+function mlRows(){const p=(s,label)=>s.split('\n').map(l=>{const [name,description]=l.split('|');return {name,description,label}});return p(ML_CDE,'cde').concat(p(ML_NOT,'not_cde'))}
+function mlSplit(){
+ // Interleave classes, then hold out every fifth example; the split is fixed so every run is reproducible.
+ const rows=mlRows(),pos=rows.filter(r=>r.label==='cde'),neg=rows.filter(r=>r.label!=='cde'),mixed=[];
+ for(let i=0;i<Math.max(pos.length,neg.length);i++){if(pos[i])mixed.push(pos[i]);if(neg[i])mixed.push(neg[i])}
+ return {train:mixed.filter((_,i)=>i%5!==4),test:mixed.filter((_,i)=>i%5===4)};
+}
+function mlTokens(text){return String(text||'').replace(/([a-z0-9])([A-Z])/g,'$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>1&&!ML_STOP.has(w)).map(w=>w.length>3&&w.endsWith('s')&&!w.endsWith('ss')?w.slice(0,-1):w)}
+function mlFeatures(name,description){
+ const f=new Set(),text=(String(name).replace(/([a-z0-9])([A-Z])/g,'$1 $2')+' '+(description||'')).toLowerCase();
+ mlTokens(name).forEach(t=>{f.add('name:'+t);f.add('word:'+t)});
+ mlTokens(description).forEach(t=>f.add('word:'+t));
+ ML_CUES.forEach(([k,re])=>{if(re.test(text))f.add(k)});
+ return [...f];
+}
+const sigmoid=z=>1/(1+Math.exp(-z));
+function trainModel(examples,opts){
+ const o=Object.assign({epochs:300,lr:0.5,l2:0.002},opts||{});
+ const X=examples.map(e=>({f:mlFeatures(e.name,e.description),y:e.label==='cde'?1:0,w:e.weight||1}));
+ const W=X.reduce((s,x)=>s+x.w,0),w={};let b=0;const losses=[];
+ X.forEach(x=>x.f.forEach(k=>{w[k]=0}));
+ for(let ep=0;ep<o.epochs;ep++){
+  const g={};let gb=0,loss=0;
+  for(const x of X){let z=b;for(const k of x.f)z+=w[k];const p=sigmoid(z),err=(p-x.y)*x.w;gb+=err;for(const k of x.f)g[k]=(g[k]||0)+err;loss+=-x.w*(x.y*Math.log(p+1e-12)+(1-x.y)*Math.log(1-p+1e-12))}
+  for(const k in w)w[k]-=o.lr*((g[k]||0)/W+o.l2*w[k]);
+  b-=o.lr*gb/W;losses.push(loss/W);
+ }
+ return {weights:w,bias:b,losses,examples:examples.length,vocabulary:Object.keys(w).length,options:o};
+}
+function predict(model,name,description){
+ const f=mlFeatures(name,description),contributions=f.filter(k=>model.weights[k]).map(k=>({feature:k,weight:model.weights[k]})).sort((a,b)=>Math.abs(b.weight)-Math.abs(a.weight));
+ const z=model.bias+contributions.reduce((s,c)=>s+c.weight,0);
+ return {p:sigmoid(z),z,contributions,unseen:f.filter(k=>!(k in model.weights))};
+}
+function binaryMetrics(rows,key){
+ const tp=rows.filter(r=>r.label==='cde'&&r[key]).length,fp=rows.filter(r=>r.label!=='cde'&&r[key]).length,fn=rows.filter(r=>r.label==='cde'&&!r[key]).length,tn=rows.length-tp-fp-fn;
+ return {tp,fp,fn,tn,precision:tp+fp?tp/(tp+fp):null,recall:tp+fn?tp/(tp+fn):null,accuracy:(tp+tn)/rows.length,f1:tp?2*tp/(2*tp+fp+fn):0};
+}
+function mlHoldout(model,t){const rows=mlSplit().test.map(r=>({...r,model:predict(model,r.name,r.description).p>=t}));return binaryMetrics(rows,'model')}
+
+const ML_TEACH={name:'hardshipPlanFlag',description:'Customer enrolled in a hardship repayment plan',label:'cde'};
+const ML_PROBES=[[ML_TEACH.name,ML_TEACH.description],['hardshipProgramCode','Hardship program assigned to the account'],['hardshipEnrollmentDate','Date the customer joined a hardship program']];
+function mlCompare(model,t){
+ // Rules + model: the model may only add a field the rules did not flag.
+ const rows=evaluateEngine().rows.map(r=>{const p=predict(model,r.field,r.description).p;return {...r,p,rules:r.predicted==='cde',model:p>=t,hybrid:r.predicted==='cde'||p>=t}});
+ return {rows,rules:binaryMetrics(rows,'rules'),model:binaryMetrics(rows,'model'),hybrid:binaryMetrics(rows,'hybrid')};
+}
+function mlLearningCurve(t){const train=mlSplit().train;return [10,20,40,60,80,train.length].map(k=>{const h=mlHoldout(trainModel(train.slice(0,k)),t);return {k,f1:h.f1,accuracy:h.accuracy}})}
+
+/* ── Northstar combined: Find → Prove → Govern use. One evidence thread, three decisions. ── */
+const PURPOSES=[
+ {id:'billing_reminders',label:'Billing reminders'},
+ {id:'servicing_analytics',label:'Servicing analytics (aggregated)'},
+ {id:'marketing',label:'Marketing segmentation'},
+ {id:'model_training',label:'AI model training'}];
+
+function runPipeline(raw,ctx,model,t){
+ // Rules decide the verdict. The model may only add fields to the review list, which also earns them a readiness check.
+ const base=analyze(raw,ctx);
+ const score=f=>model?predict(model,f.field,f.description):null;
+ const extra=new Set(base.findings.filter(f=>{const s=score(f);return !f.needsCDE&&!f.rule&&s&&s.contributions.length&&s.p>=t}).map(f=>f.field));
+ const a=analyze(raw,ctx,{extra});
+ a.findings.forEach(f=>{const s=score(f);f.ml=s?{p:s.p,why:s.contributions.slice(0,3).map(c=>(c.weight>0?'+':'')+c.weight.toFixed(2)+' '+c.feature),known:s.contributions.length>0}:null;f.mlSuggested=extra.has(f.field);f.onReviewList=f.needsCDE||!!f.rule||f.mlSuggested});
+ a.modelThreshold=t;a.modelUsed=!!model;
+ return a;
+}
+
+function purposeGate(a,review,req){
+ const c=a.context,profile=(c.use_profiles||[]).find(p=>p.purpose===req.purpose&&p.status==='approved');
+ const decided={};(review||[]).forEach(r=>{decided[r.field]=r.decision});
+ const final=d=>d==='nominate'||d==='verify_existing'||d==='not_cde';
+ const rows=(req.fields||[]).map(name=>{
+  const f=a.findings.find(x=>x.field===name);
+  if(!f)return {field:name,status:'UNKNOWN',reason:'Not in the assessed scope. Run Find on the spec that contains it.',cde:false,gaps:0,keep:false};
+  const d=decided[name],gaps=a.controls.filter(r=>r.field===name&&r.status!=='PASS').length;
+  const flagged=f.needsCDE||f.mlSuggested;
+  const isCDE=f.approved||d==='nominate'||d==='verify_existing'||(f.needsCDE&&d!=='not_cde');
+  const pending=flagged&&!f.approved&&!final(d);
+  const sensitive=!!(f.rule&&!f.rule.critical);
+  let status='OK',reason='Within the approved use profile.';
+  if(!profile){status='REVIEW';reason='No approved use profile for this purpose.'}
+  else if(!profile.fields.includes(name)){status='REMOVE';reason='Not needed for '+profile.label.toLowerCase()+'. Minimise.'}
+  else if(pending){status='HOLD';reason='Steward decision pending ('+(f.mlSuggested?'model-suggested candidate':f.status.toLowerCase())+').'}
+  else if(isCDE&&gaps){status='BLOCKED';reason=gaps+' control gap(s). Not ready for reuse until Prove clears them.'}
+  else if(sensitive)reason='Sensitive, permitted for this profile only: '+(profile.protection||'apply masking')+'.';
+  else if(isCDE)reason='CDE with current evidence; within the profile.';
+  return {field:name,status,reason,cde:isCDE,gaps,sensitive,keep:status!=='REMOVE'};
+ });
+ const issues=[];
+ if(!req.fields||!req.fields.length)issues.push('Select at least one field.');
+ if(!profile)issues.push('No approved use profile matches “'+((PURPOSES.find(p=>p.id===req.purpose)||{}).label||req.purpose)+'”. Route to the data owner and the policy authority.');
+ const days=Number(req.retention_days);
+ if(profile&&(!Number.isFinite(days)||days<1||days>profile.max_retention_days))issues.push('Retention of '+req.retention_days+' days is outside the profile’s 1–'+profile.max_retention_days+' days.');
+ if(req.purpose==='model_training')issues.push('Model training also needs model-risk and privacy review. Quality scores and CDE tags never establish permission.');
+ const has=s=>rows.some(r=>r.status===s);
+ const verdict=!rows.length?'INCOMPLETE':!profile?'REVIEW REQUIRED':has('BLOCKED')?'BLOCKED: READINESS':has('HOLD')?'ON HOLD: STEWARD DECISION':has('UNKNOWN')?'REVIEW REQUIRED':(has('REMOVE')||issues.length)?'CONDITIONAL: MINIMISE':'COMPATIBLE WITH PROFILE';
+ const route={'BLOCKED: READINESS':'Control owner resolves the readiness gaps in Prove, then the request is re-evaluated.',
+  'ON HOLD: STEWARD DECISION':'Steward records a decision in Prove, then the request is re-evaluated.',
+  'CONDITIONAL: MINIMISE':'Accept the minimised request, or document why more is needed.',
+  'COMPATIBLE WITH PROFILE':'Data owner confirms identity, entitlements and consent, then provisions through the normal access process.',
+  'REVIEW REQUIRED':'Route to the data owner and policy authority'+(req.purpose==='model_training'?', plus model-risk and privacy review':'')+'.',
+  'INCOMPLETE':'Select fields to request.'}[verdict];
+ const minimised=profile?{...req,fields:rows.filter(r=>r.keep).map(r=>r.field),retention_days:Math.min(profile.max_retention_days,Math.max(1,Number.isFinite(days)?days:1))}:null;
+ return {request:req,profile:profile?{purpose:profile.purpose,label:profile.label,owner:profile.owner,fields:profile.fields,max_retention_days:profile.max_retention_days}:null,rows,issues,verdict,route,minimised,access_granted:false,legal_compliance_determined:false,synthetic:true};
+}
+
+const STORY_REQUEST={requester:'Servicing analytics team',purpose:'billing_reminders',fields:['statementBalance','paymentDueDate','customerEmail','creditLimit'],retention_days:90};
+const TRAINING_REQUEST={requester:'Collections AI team',purpose:'model_training',fields:['statementBalance','paymentDueDate','creditLimit','aprPercent'],retention_days:365};
+const STORY_REVIEW=[{field:'statementBalance',decision:'verify_existing'},{field:'paymentDueDate',decision:'nominate'},{field:'creditLimit',decision:'nominate'},{field:'aprPercent',decision:'nominate'},{field:'customerEmail',decision:'not_cde'}];
+
+function runJourney(model,t){
+ const s=scenario('extended');
+ const a1=runPipeline(s.input,s.context,model,t),g1=purposeGate(a1,[],STORY_REQUEST);
+ const a2=runPipeline(s.input,remediatedContext(a1),model,t);
+ const review=STORY_REVIEW.map(r=>({...r,path:(a2.findings.find(f=>f.field===r.field)||{}).path,rationale:'Demo: steward decisions from the end-to-end story',official_status_changed:false}));
+ const g2=purposeGate(a2,review,STORY_REQUEST),g3=purposeGate(a2,review,g2.minimised),g4=purposeGate(a2,review,TRAINING_REQUEST);
+ return {input:s.input,a1,g1,a2,review,g2,g3,g4,contract:buildContract(a2,review)};
+}
+
+/* Value: every number is the user's assumption; nothing here is measured. */
+const VALUE_INPUTS=[
+ {id:'apps',group:'Find',label:'Applications through design review per year',unit:'apps',def:40,step:1,pilot:'Count from the review intake log.'},
+ {id:'fields',group:'Find',label:'Fields per application',unit:'fields',def:60,step:1,pilot:'Count fields in the pilot application’s specs.'},
+ {id:'minToday',group:'Find',label:'Minutes per field to triage today',unit:'min',def:3,step:0.5,pilot:'Time stewards preparing a review packet by hand.'},
+ {id:'minWith',group:'Find',label:'Minutes per field with Northstar',unit:'min',def:1.5,step:0.5,pilot:'Time the same stewards with the review list.'},
+ {id:'lateCdes',group:'Prove',label:'CDEs found late (at release or later) per application',unit:'CDEs',def:1,step:0.1,pilot:'Count late CDE findings in past reviews.'},
+ {id:'catchShare',group:'Prove',label:'Share Northstar would catch at design',unit:'%',def:50,step:5,pilot:'Candidate recall on past late findings.'},
+ {id:'hoursLate',group:'Prove',label:'Hours to remediate a CDE found late',unit:'h',def:16,step:1,pilot:'Effort on past late-finding tickets.'},
+ {id:'hoursEarly',group:'Prove',label:'Hours to handle it at design',unit:'h',def:4,step:1,pilot:'Effort for candidates handled in the pilot.'},
+ {id:'reuseReq',group:'Govern use',label:'Data reuse requests per year',unit:'requests',def:60,step:1,pilot:'Count access/reuse tickets for the domain.'},
+ {id:'reuseToday',group:'Govern use',label:'Hours to assess a reuse request today',unit:'h',def:6,step:0.5,pilot:'Time from ticket to documented decision.'},
+ {id:'reuseWith',group:'Govern use',label:'Hours with the purpose packet',unit:'h',def:2.5,step:0.5,pilot:'Same, with the gate’s packet attached.'},
+ {id:'rate',group:'Cost',label:'Loaded cost per hour',unit:'cur',def:100,step:5,pilot:'Finance’s standard loaded rate.'}];
+const HOURS_PER_FTE=1600;
+function valueDefaults(){const a={};VALUE_INPUTS.forEach(i=>a[i.id]=i.def);return a}
+function valueEstimate(a){
+ const n=k=>{const v=Number(a[k]);return Number.isFinite(v)&&v>0?v:0};
+ const fields=n('apps')*n('fields'),triage=Math.max(0,fields*(n('minToday')-n('minWith'))/60);
+ const caught=n('apps')*n('lateCdes')*Math.min(100,n('catchShare'))/100,rework=caught*Math.max(0,n('hoursLate')-n('hoursEarly'));
+ const reuse=n('reuseReq')*Math.max(0,n('reuseToday')-n('reuseWith'));
+ const hours=triage+rework+reuse;
+ return {fields,triage,caught,rework,reuse,hours,cost:hours*n('rate'),fte:hours/HOURS_PER_FTE,estimate:true,measured:false};
+}
+function valueSensitivity(a,swing){
+ const base=valueEstimate(a).hours;
+ return VALUE_INPUTS.filter(i=>i.id!=='rate').map(i=>{const lo=valueEstimate({...a,[i.id]:a[i.id]*(1-swing)}).hours,hi=valueEstimate({...a,[i.id]:a[i.id]*(1+swing)}).hours;return {id:i.id,label:i.label,low:Math.min(lo,hi),high:Math.max(lo,hi),base,range:Math.abs(hi-lo)}}).sort((x,y)=>y.range-x.range);
+}
+
+function runSelfChecks(){
+ const results=[];
+ const t=(area,name,fn)=>{let ok=false,err='';try{ok=fn()===true}catch(e){err=e.message}results.push({area,name,ok,err})};
+ const run=id=>{const s=scenario(id);return analyze(s.input,s.context)};
+ const fs=(a,n)=>a.findings.find(f=>f.field===n);
+ const ctl=(a,f,attr)=>a.controls.find(r=>r.field===f&&r.evidence.startsWith(attr+' ')).status;
+ const A=run('tagged');
+ t('Find','Demo case verdict is YES',()=>A.verdict==='YES');
+ t('Find','statementBalance is an existing approved CDE',()=>fs(A,'statementBalance').status==='EXISTING APPROVED (snapshot)');
+ t('Find','paymentDueDate is an untagged candidate',()=>fs(A,'paymentDueDate').status==='UNTAGGED CANDIDATE');
+ t('Find','customerEmail is sensitive, not a CDE candidate',()=>fs(A,'customerEmail').status==='SENSITIVE / CONTEXT REVIEW'&&!fs(A,'customerEmail').needsCDE);
+ t('Find','rewardsNickname has no CDE signal',()=>fs(A,'rewardsNickname').status==='NO CDE SIGNAL');
+ t('Find','legacyMinimumPayment is reported outside scope',()=>A.unmatched.length===1&&A.unmatched[0].field==='legacyMinimumPayment');
+ t('Find','Display-only scope with complete inventory → NO',()=>run('benign').verdict==='NO');
+ t('Find','Ambiguous bare JSON → POTENTIAL, never NO',()=>run('ambiguous').verdict==='POTENTIAL');
+ t('Find','Wrong-application inventory is not inherited',()=>fs(run('wrongApp'),'statementBalance').status==='EXISTING TAG NEEDS VERIFICATION');
+ t('Find','Duplicate tag → conflicting records',()=>fs(run('duplicate'),'statementBalance').status==='CONFLICTING INVENTORY RECORDS');
+ t('Find','Expired approval needs verification',()=>!fs(run('expired'),'statementBalance').approved);
+ t('Find','Altered type needs verification',()=>!fs(run('alteredType'),'statementBalance').typeMatch);
+ t('Input','Malformed JSON is rejected',()=>{try{analyze('{bad',clone(CONTEXT));return false}catch(e){return /could not be parsed/.test(e.message)}});
+ t('Input','Context without a policy pack is rejected',()=>{const c=clone(CONTEXT);delete c.policy_pack;try{analyze(scenario('tagged').input,c);return false}catch(e){return true}});
+ t('Input','Input with no fields is rejected',()=>{try{analyze('{}',clone(CONTEXT));return false}catch(e){return /No fields/.test(e.message)}});
+ t('Prove','Balance lineage missing → UNKNOWN',()=>ctl(A,'statementBalance','lineage_ref')==='UNKNOWN');
+ t('Prove','Balance failed test → FAIL',()=>ctl(A,'statementBalance','dq_pass')==='FAIL');
+ t('Prove','Balance evidence 81 days old → FAIL',()=>ctl(A,'statementBalance','tested_at')==='FAIL');
+ const R=analyze(scenario('tagged').input,remediatedContext(A));
+ t('Prove','Remediation clears every FAIL and UNKNOWN',()=>R.controls.every(r=>r.status==='PASS'));
+ t('Prove','Remediation never approves the due-date candidate',()=>fs(R,'paymentDueDate').status==='UNTAGGED CANDIDATE');
+ t('Prove','Contract never claims a system update',()=>buildContract(R).real_systems_updated===false&&buildContract(R).status==='proposed_not_approved');
+ const split=mlSplit(),M=trainModel(split.train),M2=trainModel(split.train),cmp=mlCompare(M,.5);
+ t('ML','Training is deterministic',()=>JSON.stringify(M.weights)===JSON.stringify(M2.weights));
+ t('ML','Training loss falls by more than 80%',()=>M.losses[M.losses.length-1]<M.losses[0]*.2);
+ t('ML','No evaluation field appears in training data',()=>!mlRows().some(r=>EVAL_SET.some(e=>e[0]===r.name)));
+ t('ML','Rules + model catch creditLimit and aprPercent on the 12 fields',()=>['creditLimit','aprPercent'].every(n=>cmp.rows.find(r=>r.field===n).hybrid));
+ t('ML','Rules + model add no false candidates on the 12 fields',()=>cmp.hybrid.fp===0&&cmp.hybrid.recall===1);
+ t('ML','Score explanation sums exactly to the logit',()=>{const p=predict(M,'creditLimit','Approved credit line');return Math.abs(p.z-(M.bias+p.contributions.reduce((s,c)=>s+c.weight,0)))<1e-9});
+ t('ML','One steward label lifts unseen related fields over 0.5',()=>{const m=trainModel(split.train.concat([{...ML_TEACH,weight:3}]));return ML_PROBES.slice(1).every(([n,d])=>predict(M,n,d).p<.5&&predict(m,n,d).p>=.5)});
+ const s=scenario('extended'),P=runPipeline(s.input,s.context,M,.5),P0=runPipeline(s.input,s.context,null,.5);
+ t('Combined','Model suggests exactly creditLimit and aprPercent in v2.5',()=>P.findings.filter(f=>f.mlSuggested).map(f=>f.field).sort().join()==='aprPercent,creditLimit');
+ t('Combined','Verdict is identical with and without the model',()=>P.verdict===P0.verdict&&P.verdict===analyze(s.input,s.context).verdict);
+ t('Combined','Model-suggested fields get a readiness check (6 UNKNOWN each)',()=>['creditLimit','aprPercent'].every(n=>P.controls.filter(r=>r.field===n&&r.status==='UNKNOWN').length===6));
+ t('Combined','Model never re-flags a field the rules already found',()=>P.findings.every(f=>!(f.mlSuggested&&(f.needsCDE||f.rule))));
+ t('Combined','Without a model nothing is model-suggested',()=>!P0.findings.some(f=>f.mlSuggested));
+ const J=runJourney(M,.5);
+ t('Govern use','Story request before Prove → BLOCKED: READINESS',()=>J.g1.verdict==='BLOCKED: READINESS');
+ t('Govern use','Before Prove: balance blocked, due date on hold, creditLimit removed',()=>{const st=n=>J.g1.rows.find(r=>r.field===n).status;return st('statementBalance')==='BLOCKED'&&st('paymentDueDate')==='HOLD'&&st('creditLimit')==='REMOVE'&&st('customerEmail')==='OK'});
+ t('Govern use','After remediation + steward review → CONDITIONAL: MINIMISE',()=>J.g2.verdict==='CONDITIONAL: MINIMISE');
+ t('Govern use','Minimised request → COMPATIBLE WITH PROFILE',()=>J.g3.verdict==='COMPATIBLE WITH PROFILE'&&J.g3.request.retention_days===30&&!J.g3.request.fields.includes('creditLimit'));
+ t('Govern use','Model training stays REVIEW REQUIRED even after Prove',()=>J.g4.verdict==='REVIEW REQUIRED'&&J.g4.issues.some(i=>/model-risk/.test(i)));
+ t('Govern use','“Request more context” keeps a candidate on hold',()=>purposeGate(J.a2,[{field:'paymentDueDate',decision:'needs_context'}],{...STORY_REQUEST,fields:['paymentDueDate'],retention_days:30}).verdict==='ON HOLD: STEWARD DECISION');
+ t('Govern use','A field outside the assessed scope is UNKNOWN',()=>purposeGate(J.a2,J.review,{...STORY_REQUEST,fields:['accountToken'],retention_days:30}).rows[0].status==='UNKNOWN');
+ t('Govern use','No use profiles in context → REVIEW REQUIRED',()=>{const c=clone(J.a2.context);c.use_profiles=[];const a=runPipeline(s.input,c,M,.5);return purposeGate(a,J.review,STORY_REQUEST).verdict==='REVIEW REQUIRED'});
+ t('Govern use','The gate never grants access or decides legality',()=>[J.g1,J.g2,J.g3,J.g4].every(g=>g.access_granted===false&&g.legal_compliance_determined===false));
+ t('Govern use','Contract carries use profiles to the gate',()=>Array.isArray(J.contract.use_profiles)&&J.contract.use_profiles.length===2);
+ const V=valueEstimate(valueDefaults());
+ t('Value','Example assumptions: 60 + 240 + 210 = 510 h',()=>V.triage===60&&V.rework===240&&V.reuse===210&&V.hours===510&&V.cost===51000);
+ t('Value','No improvement anywhere → zero value',()=>valueEstimate({...valueDefaults(),minWith:3,catchShare:0,reuseWith:6}).hours===0);
+ t('Value','Invalid or negative inputs count as zero',()=>valueEstimate({...valueDefaults(),apps:-5,reuseReq:'x'}).hours===0);
+ t('Value','Always labelled an estimate, never measured',()=>V.estimate===true&&V.measured===false);
+ return results;
+}
+if(typeof module!=='undefined')module.exports={analyze,scenario,runPipeline,purposeGate,runJourney,trainModel,mlSplit,predict,mlCompare,valueEstimate,valueDefaults,runSelfChecks,STORY_REQUEST,TRAINING_REQUEST};
+</script>
+<script>
+/* Shared shell behaviour for the three Northstar MVP pages. */
+const $=id=>document.getElementById(id);
+const VIEW_NAMES={};
+let onViewShown=()=>{};
+function buildNav(views){
+ views.forEach(([,items])=>items.forEach(([id,,label])=>VIEW_NAMES[id]=label));
+ $('sideNav').innerHTML=views.map(([g,items])=>'<div class="nav-group">'+g+'</div>'+items.map(([id,n,label])=>'<button class="nav-btn" data-go="'+id+'"><span class="n">'+n+'</span>'+esc(label)+'</button>').join('')).join('');
+ $('mobileNav').innerHTML=views.flatMap(([,items])=>items).map(([id,,label])=>'<button class="btn sm" data-go="'+id+'">'+esc(label)+'</button>').join('');
+}
+function showView(id,keepScroll){
+ if(!VIEW_NAMES[id])id=Object.keys(VIEW_NAMES)[0];
+ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
+ document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.go===id));
+ $('crumb').textContent=VIEW_NAMES[id];
+ try{history.replaceState(null,'','#'+id)}catch(e){}
+ if(!keepScroll)window.scrollTo({top:0,behavior:'smooth'});
+ onViewShown(id);
+}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();showView(g.dataset.go)}});
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('show'),2800)}
+function download(name,content,type='application/json'){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Download requested: '+name)}
+function chip(status,extra){
+ const s=String(status);let cls='neutral';
+ if(/FAIL|CONFLICT|BLOCKED/.test(s))cls='fail';
+ else if(/PASS|ALIGNED|APPROVED|COMPATIBLE|^OK$|^YES$|NOMINATE|VERIFY|^TP$|^TN$|MATCH/.test(s))cls='pass';
+ else if(/SENSITIVE|EVIDENCE PRESENT|MODEL/.test(s))cls='info';
+ else if(/UNKNOWN|REVIEW|CANDIDATE|VERIFICATION|POSSIBLE|POTENTIAL|HOLD|CONDITIONAL|REMOVE|CONTEXT|^FN$|^FP$|DIFFERS/.test(s))cls='warn';
+ return '<span class="chip '+cls+(extra?' '+extra:'')+'">'+esc(s)+'</span>';
+}
+const pct=x=>x===null||x===undefined?'—':Math.round(x*100)+'%';
+(function(){let saved=null;try{saved=localStorage.getItem('nsd-theme')}catch(e){}if(saved)document.documentElement.dataset.theme=saved;
+ $('themeBtn').onclick=()=>{const cur=document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');const next=cur==='dark'?'light':'dark';document.documentElement.dataset.theme=next;try{localStorage.setItem('nsd-theme',next)}catch(e){}}})();
+let modalOpener=null;
+function openModal(eye,title,html){modalOpener=document.activeElement;$('modalEye').textContent=eye;$('modalTitle').textContent=title;$('modalBody').innerHTML=html;$('modal').classList.add('open');$('modal').querySelector('button').focus()}
+function closeModal(){$('modal').classList.remove('open');if(modalOpener&&modalOpener.focus)modalOpener.focus()}
+$('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape')closeModal();
+ if(e.key!=='Tab'||!$('modal').classList.contains('open'))return;
+ const nodes=[...$('modal').querySelectorAll('button,a,textarea,select,input')].filter(x=>!x.disabled);if(!nodes.length)return;
+ const first=nodes[0],last=nodes[nodes.length-1];
+ if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+});
+/* Presenter script for this part, with a timer. */
+let PITCH=[],tSec=0,tHandle=null;
+const mmss=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function renderPitch(){const end=PITCH.length?PITCH[PITCH.length-1][1]:0;$('pitchLine').innerHTML=PITCH.map(([a,b,t,d])=>'<div class="tl '+(tSec>=a&&tSec<b?'on':'')+'"><b>'+mmss(a)+'–'+mmss(b)+' · '+esc(t)+'</b><small>'+esc(d)+'</small></div>').join('');$('timer').textContent=mmss(tSec);$('timer').className='mono'+(tSec>end?' fail-t':'')}
+function toggleTimer(){if(tHandle){clearInterval(tHandle);tHandle=null;$('timerBtn').textContent='Resume';return}tHandle=setInterval(()=>{tSec++;renderPitch()},1000);$('timerBtn').textContent='Pause'}
+function resetTimer(){clearInterval(tHandle);tHandle=null;tSec=0;$('timerBtn').textContent='Start';renderPitch()}
+function renderQA(items){$('qa').innerHTML=items.map(([q,a])=>'<details><summary>'+esc(q)+'</summary><p>'+esc(a)+'</p></details>').join('')}
+/* Self-checks: the engine is shared by all pages; each page shows the areas it owns. */
+let CHECK_AREAS=[];
+function renderChecks(){
+ const r=runSelfChecks().filter(x=>CHECK_AREAS.includes(x.area)),ok=r.filter(x=>x.ok).length;
+ $('checkRows').innerHTML=r.map((x,i)=>'<tr><td class="mono">'+(i+1)+'</td><td>'+esc(x.area)+'</td><td>'+esc(x.name)+(x.err?'<br><small class="fail-t">'+esc(x.err)+'</small>':'')+'</td><td>'+chip(x.ok?'PASS':'FAIL')+'</td></tr>').join('');
+ $('checkSummary').textContent=ok+' / '+r.length+' passing';
+ document.querySelectorAll('[data-checks]').forEach(el=>el.textContent=ok+'/'+r.length);
+}
+/* Guided demo: each page supplies DEMO = [{view,title,text,act}]. */
+let DEMO=[],demoAt=0;
+function startDemo(){demoAt=0;renderDemoStep()}
+function renderDemoStep(){const s=DEMO[demoAt];showView(s.view);$('demoNum').textContent=(demoAt+1)+' / '+DEMO.length;$('demoTitle').textContent=s.title;$('demoText').textContent=s.text;$('demoBar').classList.remove('hidden');s.act()}
+function stepDemo(d){if(demoAt+d>=DEMO.length){$('demoBar').classList.add('hidden');toast('Walkthrough complete.');return}demoAt=Math.max(0,demoAt+d);renderDemoStep()}
+
+/* ML Candidate Model page. */
+buildNav([
+ ['Story',[['overview','00','Overview'],['how','?','How it works'],['data','≡','Training data']]],
+ ['Live demo',[['train','1','Train & compare'],['explain','2','Explain a score'],['learn','3','Learn from stewards'],['apply','4','Apply to a spec']]],
+ ['MVP',[['mvp','◇','Scope & delivery'],['deps','§','Data, files & model card'],['present','★','Presenting'],['checks','⚙','Self-checks']]]]);
+CHECK_AREAS=['ML','Combined'];
+let mlModel=null,mlBase=null,mlFeedback=[],mlCurve=null;
+const tNow=()=>+$('threshold').value;
+function lineChart(vals,o){
+ const W=300,H=110,P=18,span=(o.max-o.min)||1;
+ const x=i=>P+(W-2*P)*(vals.length<2?0:i/(vals.length-1)),y=v=>H-P-(H-2*P)*((v-o.min)/span);
+ const d=vals.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+ const dots=o.dots?vals.map((v,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="3" style="fill:var(--accent)"/>').join(''):'';
+ const ticks=(o.xticks||[]).map(([i,l])=>'<text x="'+x(i).toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" style="fill:var(--muted);font:9px var(--mono)">'+esc(l)+'</text>').join('');
+ return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.label)+'"><line x1="'+P+'" y1="'+(H-P)+'" x2="'+(W-P)+'" y2="'+(H-P)+'" style="stroke:var(--line-2)"/><text x="'+P+'" y="11" style="fill:var(--muted);font:9px var(--mono)">'+esc(o.top)+'</text><path d="'+d+'" fill="none" style="stroke:var(--accent);stroke-width:2"/>'+dots+ticks+'</svg>';
+}
+function mlTrain(quiet){
+ const train=mlSplit().train;
+ if(!mlBase)mlBase=trainModel(train);
+ if(!mlCurve)mlCurve=mlLearningCurve(.5);
+ mlModel=mlFeedback.length?trainModel(train.concat(mlFeedback.map(f=>({...f,weight:3})))):mlBase;
+ renderAllML();if(!quiet)toast('Trained on '+mlModel.examples+' examples'+(mlFeedback.length?' incl. '+mlFeedback.length+' steward label(s)':'')+'.');
+}
+function renderAllML(){renderTrain();renderCompare();renderProbe();renderTop();renderLearn();renderData();if($('applyOut').dataset.ran)applyModel(true)}
+
+/* ═════ Training data tab ═════ */
+// Generic words whose weight reflects how the synthetic descriptions are worded, not what makes data critical.
+const GENERIC={used:'Describes how a field is used, not what it is; many CDE descriptions happen to say “used in…”.',account:'Nearly every card field relates to an account; it cannot separate critical from non-critical.',card:'Every field in this estate is about a card.',customer:'Customer-facing does not mean non-critical (a customer’s balance is a CDE).',id:'Identifiers can be critical, e.g. an account identifier used in reporting.',identifier:'Identifiers can be critical, e.g. an account identifier used in reporting.',app:'A channel word, not a criticality signal.',shown:'Display wording; a hint at most.',date:'Dates can be critical (due date) or not (last login); the use decides.',code:'Codes can be regulatory or cosmetic.',time:'Timestamps can be critical or not.',last:'Ordinal word with no criticality meaning.',status:'Status fields can drive decisions or not.',amount:'Most amounts are critical, but a strong single-word rule is brittle.'};
+let DATA_ROWS=null,FEATURE_COUNTS=null;
+function dataRows(){
+ if(!DATA_ROWS){const sp=mlSplit();DATA_ROWS=sp.train.map(r=>({...r,split:'train'})).concat(sp.test.map(r=>({...r,split:'holdout'})));
+  FEATURE_COUNTS={};sp.train.forEach(r=>mlFeatures(r.name,r.description).forEach(f=>{const c=FEATURE_COUNTS[f]||(FEATURE_COUNTS[f]={cde:0,not:0});c[r.label==='cde'?'cde':'not']++}))}
+ return DATA_ROWS.concat(mlFeedback.map(f=>({name:f.name,description:f.description,label:f.label,split:'feedback',source:f.source})));
+}
+function renderData(){
+ if(!mlModel)return;
+ const all=dataRows(),t=tNow(),base=all.filter(r=>r.split!=='feedback');
+ $('dataMetrics').innerHTML=[[base.length,'labelled rows'],[base.filter(r=>r.label==='cde').length+' / '+base.filter(r=>r.label!=='cde').length,'cde / not_cde'],[base.filter(r=>r.split==='train').length+' / '+base.filter(r=>r.split==='holdout').length,'training / held out'],[mlFeedback.length,'steward labels (×3)']].map(([n,l])=>'<div class="metric"><strong>'+n+'</strong><small>'+l+'</small></div>').join('');
+ const q=$('dSearch').value.trim().toLowerCase(),lab=$('dLabel').value,spl=$('dSplit').value,sc=$('dScore').value;
+ const rows=all.map(r=>({...r,p:predict(mlModel,r.name,r.description).p})).filter(r=>(!q||(r.name+' '+r.description).toLowerCase().includes(q))&&(!lab||r.label===lab)&&(!spl||r.split===spl)&&(!sc||(sc==='wrong'?(r.p>=t)!==(r.label==='cde'):sc==='near'?Math.abs(r.p-t)<=.15:/no effect|does not affect/i.test(r.description))));
+ $('dCount').textContent=rows.length+' of '+all.length+' rows · scores from the current model at threshold '+t.toFixed(2);
+ const splitChip={train:'<span class="chip neutral">training</span>',holdout:'<span class="chip info">held out</span>',feedback:'<span class="chip accent">steward ×3</span>'};
+ $('dRows').innerHTML=rows.length?rows.map((r,i)=>{const wrong=(r.p>=t)!==(r.label==='cde');return '<tr><td class="mono">'+(i+1)+'</td><td><b class="mono">'+esc(r.name)+'</b></td><td><small>'+esc(r.description||'—')+'</small></td><td>'+(r.label==='cde'?'<span class="chip accent">cde</span>':'<span class="chip neutral">not_cde</span>')+'</td><td>'+splitChip[r.split]+'</td><td class="mono"><span class="pbar"><i style="width:'+(r.p*100).toFixed(0)+'%"></i></span>'+r.p.toFixed(2)+(wrong?' '+chip('DISAGREES'):'')+'</td></tr>'}).join(''):'<tr><td colspan="6" class="muted">No rows match.</td></tr>';
+ renderWeights();renderTrace();
+}
+function renderWeights(){
+ const W=Object.entries(mlModel.weights),cnt=f=>(FEATURE_COUNTS&&FEATURE_COUNTS[f])||{cde:0,not:0};
+ $('wMeta').textContent=W.length+' features · bias '+mlModel.bias.toFixed(2)+' (a field with no known words scores '+(1/(1+Math.exp(-mlModel.bias))).toFixed(2)+')';
+ const susp=W.filter(([f,w])=>{const [k,word]=f.split(':');return k!=='cue'&&GENERIC[word]&&Math.abs(w)>=.3}).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+ $('suspRows').innerHTML=susp.length?susp.map(([f,w])=>'<tr><td><code>'+esc(f)+'</code></td><td class="mono '+(w>0?'warn-t':'pass-t')+'"><b>'+(w>0?'+':'')+w.toFixed(2)+'</b></td><td class="mono">'+cnt(f).cde+'</td><td class="mono">'+cnt(f).not+'</td><td><small>'+esc(GENERIC[f.split(':')[1]])+'</small></td></tr>').join(''):'<tr><td colspan="5" class="muted">None above |0.30|.</td></tr>';
+ const q=$('wSearch').value.trim().toLowerCase(),kind=$('wKind').value,sort=$('wSort').value;
+ const list=W.filter(([f])=>(!q||f.toLowerCase().includes(q))&&(!kind||f.startsWith(kind+':'))).sort((a,b)=>sort==='pos'?b[1]-a[1]:sort==='neg'?a[1]-b[1]:Math.abs(b[1])-Math.abs(a[1]));
+ $('wCount').textContent=list.length+' feature(s)'+(list.length>150?' · showing the first 150':'');
+ $('wRows').innerHTML=list.slice(0,150).map(([f,w])=>{const [k,word]=f.split(':');return '<tr><td><code>'+esc(f)+'</code>'+(k!=='cue'&&GENERIC[word]&&Math.abs(w)>=.3?' '+chip('SUSPICIOUS'):'')+'</td><td><small>'+({cue:'domain cue',name:'name word',word:'any word'})[k]+'</small></td><td class="mono '+(w>0?'warn-t':'pass-t')+'">'+(w>0?'+':'')+w.toFixed(2)+'</td><td class="mono">'+cnt(f).cde+'</td><td class="mono">'+cnt(f).not+'</td></tr>'}).join('');
+}
+function renderTrace(){
+ const s=scenario('extended'),a=runPipeline(s.input,s.context,mlModel,tNow());
+ if(!$('traceField').options.length)$('traceField').innerHTML=a.findings.map(f=>'<option'+(f.field==='creditLimit'?' selected':'')+'>'+esc(f.field)+'</option>').join('');
+ const f=a.findings.find(x=>x.field===$('traceField').value)||a.findings[0],a0=runPipeline(s.input,s.context,null,tNow());
+ const ctl=a.controls.filter(r=>r.field===f.field),k=st=>ctl.filter(r=>r.status===st).length;
+ const prof=(s.context.use_profiles||[]).find(p=>p.fields.includes(f.field));
+ const g=purposeGate(a,[],{purpose:prof?prof.purpose:'marketing',fields:[f.field],retention_days:30}).rows[0];
+ const step=(on,t,d)=>'<div class="tl'+(on?' on':'')+'"><b>'+t+'</b><small>'+d+'</small></div>';
+ $('trace').innerHTML=
+  step(true,'1 · Rules + inventory',f.needsCDE||f.rule?esc(f.status.toLowerCase())+' — '+esc(f.rule?f.rule.reason:'inventory match'):'No rules signal. The project verdict is <b>'+esc(a.verdict)+'</b> with the model and <b>'+esc(a0.verdict)+'</b> without it.')+
+  step(f.mlSuggested,'2 · Model',f.needsCDE||f.rule?'Not needed: the rules already put this field on the review list (score '+(f.ml?f.ml.p.toFixed(2):'—')+').':!f.ml||!f.ml.known?'No known words; the model adds nothing. Missing context is still a reason for a human look.':'Score <b>'+f.ml.p.toFixed(2)+'</b> vs threshold '+tNow().toFixed(2)+' → '+(f.mlSuggested?'<b>added to the review list</b>':'not added')+'. Reasons: '+esc(f.ml.why.join(' · ')))+
+  step(f.onReviewList,'3 · Prove',ctl.length?ctl.length+' clause checks: '+k('PASS')+' pass, '+k('FAIL')+' fail, '+k('UNKNOWN')+' unknown.':f.onReviewList?'Sensitivity review, not a CDE clause check.':'Not on the review list, so not checked.')+
+  step(f.onReviewList,'4 · Steward',f.onReviewList?'Decision pending. Nominate → CDE label for the model; no nomination → not_cde label; request context → no label.':'Nothing to decide.')+
+  step(g.status!=='OK','5 · Purpose Gate','A '+esc(prof?prof.label.toLowerCase():'marketing')+' request for this field today: '+chip(g.status)+' '+esc(g.reason));
+}
+['dSearch','dLabel','dSplit','dScore'].forEach(id=>$(id).addEventListener('input',renderData));
+['wSearch','wKind','wSort'].forEach(id=>$(id).addEventListener('input',renderWeights));
+$('traceField').addEventListener('change',renderTrace);
+function downloadData(){
+ const rows=dataRows(),q=s=>'"'+String(s).replace(/"/g,'""')+'"';
+ download('ml-training-data.csv',['name,description,label,split,model_score'].concat(rows.map(r=>[q(r.name),q(r.description),r.label,r.split,mlModel?predict(mlModel,r.name,r.description).p.toFixed(3):''].join(','))).join('\n'),'text/csv');
+}
+function renderTrain(){
+ const {train,test}=mlSplit();$('dataMeta').textContent=train.length+' training · '+test.length+' holdout · '+mlFeedback.length+' steward label(s)';
+ if(!mlModel){$('mlStatus').textContent='Not trained';return}
+ $('mlStatus').textContent=(mlModel.imported?'Imported · '+mlModel.imported:'Trained')+' · '+Object.keys(mlModel.weights).length+' features';$('mlStatus').className='chip pass';
+ const L=mlModel.losses||[];
+ $('mlLoss').innerHTML=L.length>1?lineChart(L,{min:0,max:Math.max(...L),label:'Training loss by epoch',top:'log-loss '+L[0].toFixed(2)+' → '+L[L.length-1].toFixed(3),xticks:[[0,'0'],[L.length-1,String(L.length)]]}):'No loss history in the imported file';
+ $('mlCurve').innerHTML=lineChart(mlCurve.map(c=>c.f1),{min:0,max:1,dots:true,label:'Holdout F1 by training size',top:'F1 · training examples →',xticks:mlCurve.map((c,i)=>[i,String(c.k)])});
+ const h=mlHoldout(mlModel,tNow());
+ $('holdoutMetrics').innerHTML=[[pct(h.accuracy),'accuracy'],[pct(h.precision),'precision'],[pct(h.recall),'recall'],[h.f1.toFixed(2),'F1']].map(([n,l])=>'<div class="metric"><strong>'+n+'</strong><small>'+l+'</small></div>').join('');
+ $('confusion').innerHTML='<div class="tbl-wrap"><table style="min-width:0"><thead><tr><th></th><th>Predicted CDE</th><th>Predicted not</th></tr></thead><tbody><tr><td><b>Labelled CDE</b></td><td>'+h.tp+'</td><td>'+h.fn+'</td></tr><tr><td><b>Labelled not</b></td><td>'+h.fp+'</td><td>'+h.tn+'</td></tr></tbody></table></div>';
+}
+function renderCompare(){
+ $('tVal').textContent=tNow().toFixed(2);if(!mlModel)return;
+ const c=mlCompare(mlModel,tNow()),added=c.rows.filter(r=>r.hybrid&&!r.rules);
+ $('compareMetrics').innerHTML=[[pct(c.rules.recall),'recall · rules only'],[pct(c.hybrid.recall),'recall · rules + model'],[pct(c.hybrid.precision),'precision · rules + model'],[added.length,'fields added by the model']].map(([n,l])=>'<div class="metric"><strong>'+n+'</strong><small>'+l+'</small></div>').join('');
+ $('compareRows').innerHTML=c.rows.map(r=>'<tr><td class="mono"><b>'+esc(r.field)+'</b>'+(r.hybrid&&!r.rules?' <span class="chip indigo">added by model</span>':'')+'<br><small class="muted" style="font-family:var(--sans)">'+esc(r.description)+'</small></td><td>'+(r.label==='cde'?'<span class="chip accent">CDE</span>':'<span class="chip neutral">not CDE</span>')+'</td><td>'+(r.rules?'candidate':'<span class="muted">—</span>')+'</td><td class="mono"><span class="pbar"><i style="width:'+(r.p*100).toFixed(0)+'%"></i></span>'+r.p.toFixed(2)+'</td><td>'+(r.hybrid?'candidate':'<span class="muted">—</span>')+'</td></tr>').join('');
+ $('ovRules').textContent=pct(c.rules.recall);$('ovHybrid').textContent=pct(c.hybrid.recall);$('ovFp').textContent=c.hybrid.fp;
+}
+$('threshold').addEventListener('input',renderAllML);
+const featureLabel=k=>{const [kind,w]=k.split(':');return kind==='cue'?'cue · '+w:kind==='name'?'name word “'+w+'”':'word “'+w+'”'};
+function renderProbe(){
+ if(!mlModel){$('probeOut').innerHTML='<div class="empty">Train the model first.</div>';return}
+ const pr=predict(mlModel,$('probeName').value,$('probeDesc').value),t=tNow(),top=pr.contributions.slice(0,8);
+ $('probeOut').innerHTML='<div class="row between"><h2>Score</h2>'+(pr.contributions.length?pr.p>=t?chip('SUGGEST REVIEW'):'<span class="chip neutral">Below threshold</span>':'<span class="chip neutral">No known words</span>')+'</div><div class="verdict mt" style="color:var(--accent)">'+pr.p.toFixed(2)+'</div><div class="bar mt"><i style="width:'+(pr.p*100).toFixed(0)+'%"></i></div><div class="field-label">Top contributions (log-odds)</div>'+
+  (top.length?top.map(c=>'<div class="contrib"><span>'+esc(featureLabel(c.feature))+'</span><b class="'+(c.weight>0?'warn-t':'pass-t')+'">'+(c.weight>0?'+':'')+c.weight.toFixed(2)+'</b></div>').join(''):'<p class="small">No known words, so the score is just the bias. Missing context is a reason for review, not for comfort.</p>')+
+  '<div class="contrib"><span>bias</span><b>'+(mlModel.bias>0?'+':'')+mlModel.bias.toFixed(2)+'</b></div><p class="small mt">Score = σ(bias + Σ weights) = σ('+pr.z.toFixed(2)+').</p>';
+}
+['probeName','probeDesc'].forEach(id=>$(id).addEventListener('input',renderProbe));
+$('presets').innerHTML=[['creditLimit','Approved credit line used in utilization and authorization'],['aprPercent','Annual percentage rate applied to purchases'],['rewardsNickname','Display-only label; no effect on billing or credit decisions.'],['hardshipProgramCode','Hardship program assigned to the account'],['lastLoginAt','Time of the most recent app sign-in'],['field_a','']].map(([n,d])=>'<button class="btn sm" data-probe="'+esc(n)+'" data-desc="'+esc(d)+'">'+esc(n)+'</button>').join('');
+$('presets').addEventListener('click',e=>{const b=e.target.closest('[data-probe]');if(!b)return;$('probeName').value=b.dataset.probe;$('probeDesc').value=b.dataset.desc;renderProbe()});
+function renderTop(){
+ if(!mlModel)return;const w=Object.entries(mlModel.weights).sort((a,b)=>b[1]-a[1]);
+ const row=([k,v])=>'<div class="contrib"><span>'+esc(featureLabel(k))+'</span><b class="'+(v>0?'warn-t':'pass-t')+'">'+(v>0?'+':'')+v.toFixed(2)+'</b></div>';
+ $('topPos').innerHTML=w.slice(0,10).map(row).join('');$('topNeg').innerHTML=w.slice(-10).reverse().map(row).join('');
+}
+function renderLearn(){
+ $('feedbackRows').innerHTML=mlFeedback.length?mlFeedback.map(f=>'<tr><td>'+(f.label==='cde'?'<span class="chip accent">CDE</span>':'<span class="chip neutral">not CDE</span>')+'</td><td class="mono">'+esc(f.name)+'</td><td>'+esc(f.source)+'</td></tr>').join(''):'<tr><td colspan="3" class="muted">No steward labels yet.</td></tr>';
+ if(!mlModel||!mlBase){$('learnRows').innerHTML='<tr><td colspan="3" class="muted">Train first.</td></tr>';return}
+ const t=tNow();
+ $('learnRows').innerHTML=ML_PROBES.map(([n,d],i)=>{const b=predict(mlBase,n,d).p,a=predict(mlModel,n,d).p,up=a>=t&&b<t;return '<tr><td class="mono"><b>'+esc(n)+'</b> '+(i===0?'<span class="chip accent">taught</span>':'<span class="chip neutral">unseen</span>')+'<br><small class="muted" style="font-family:var(--sans)">'+esc(d)+'</small></td><td class="mono">'+b.toFixed(2)+'</td><td class="mono'+(up?' pass-t':'')+'"><b>'+a.toFixed(2)+'</b>'+(up?' ↑ crosses '+t.toFixed(2):'')+'</td></tr>'}).join('');
+ $('learnNote').textContent=mlFeedback.length?(mlModel===mlBase?'Labels recorded — press Retrain.':'Weights are shared across words, so one decision about hardship plans moves related fields the model has never seen.'):'No steward feedback yet: before and after are the same model.';
+}
+function mlTeach(){mlFeedback=mlFeedback.filter(x=>x.name!==ML_TEACH.name);mlFeedback.push({...ML_TEACH,source:'Steward (demo)'});renderLearn();toast('Label recorded. Retrain to learn from it.')}
+function mlClear(){mlFeedback=[];mlModel=mlBase;renderAllML()}
+$('labelFile').onchange=async e=>{
+ const file=e.target.files[0];e.target.value='';if(!file)return;
+ try{const j=JSON.parse(await file.text());const list=Array.isArray(j)?j:j.ml_training_labels;
+  if(!Array.isArray(list))throw new Error('No ml_training_labels array found.');
+  const ok=list.filter(l=>l&&typeof l.name==='string'&&(l.label==='cde'||l.label==='not_cde')).slice(0,500);
+  ok.forEach(l=>{mlFeedback=mlFeedback.filter(x=>x.name!==l.name);mlFeedback.push({name:l.name,description:String(l.description||''),label:l.label,source:'Radar export'})});
+  renderLearn();toast(ok.length+' label(s) imported. Retrain to learn from them.');
+ }catch(err){toast('Import failed: '+err.message)}
+};
+function mlExport(){if(!mlModel){toast('Train first.');return}download('cde-candidate-model.json',JSON.stringify({format:'northstar-cde-candidate-model',format_version:1,tokenizer:'v1',model:'logistic regression (bag of words + domain cues)',bias:mlModel.bias,weights:mlModel.weights,losses:mlModel.losses,threshold:tNow(),training:{examples:mlModel.examples,source:mlModel.imported?'imported: '+mlModel.imported:'built-in synthetic set'},steward_feedback:mlFeedback,intended_use:'Suggest additional CDE candidates for steward review only',never_used_for:['verdicts','policy results','reuse decisions','catalog designation'],synthetic:true},null,2))}
+$('mlImportFile').onchange=async e=>{
+ const file=e.target.files[0];e.target.value='';if(!file)return;
+ try{
+  if(file.size>2000000)throw new Error('Model file is larger than 2 MB.');
+  const m=JSON.parse(await file.text());
+  if(m.format!=='northstar-cde-candidate-model')throw new Error('Not a Northstar CDE candidate model.');
+  if(m.tokenizer!=='v1')throw new Error('Model uses tokenizer '+m.tokenizer+'; this page supports v1.');
+  if(!Number.isFinite(m.bias)||!m.weights||typeof m.weights!=='object'||Object.values(m.weights).some(w=>!Number.isFinite(w)))throw new Error('Model bias or weights are not numeric.');
+  if(!mlCurve)mlCurve=mlLearningCurve(.5);
+  mlModel=mlBase={weights:m.weights,bias:m.bias,losses:Array.isArray(m.losses)?m.losses:[],examples:(m.training&&m.training.examples)||0,imported:file.name};mlFeedback=[];
+  if(Number.isFinite(m.threshold))$('threshold').value=Math.min(.9,Math.max(.3,Math.round(m.threshold/.05)*.05));
+  renderAllML();toast('Imported '+file.name+' · threshold '+tNow().toFixed(2));
+ }catch(err){toast('Import failed: '+err.message)}
+};
+
+/* Apply to a spec: rules alone vs rules + model on the same spec. */
+function loadSpec(id){$('specInput').value=scenario(id).input;delete $('applyOut').dataset.ran;$('applyOut').innerHTML=''}
+function applyModel(quiet){
+ if(!mlModel){toast('Train the model first.');return}
+ let a,a0;try{const ctx=scenario('tagged').context;a=runPipeline($('specInput').value,ctx,mlModel,tNow());a0=runPipeline($('specInput').value,ctx,null,tNow())}catch(e){$('applyOut').innerHTML='<div class="notice fail">'+esc(e.message)+'</div>';return}
+ $('applyOut').dataset.ran='1';
+ const added=a.findings.filter(f=>f.mlSuggested);
+ $('applyOut').innerHTML='<div class="grid g4">'+[[a0.verdict,'verdict · rules only'],[a.verdict,'verdict · rules + model'],[a0.findings.filter(f=>f.onReviewList).length,'review list · rules only'],[a.findings.filter(f=>f.onReviewList).length,'review list · rules + model']].map(([n,l])=>'<div class="metric"><strong>'+esc(n)+'</strong><small>'+l+'</small></div>').join('')+'</div>'+
+  '<div class="notice '+(a.verdict===a0.verdict?'pass':'fail')+' mt"><b>'+(a.verdict===a0.verdict?'Verdict unchanged by the model.':'Verdict changed — this must never happen.')+'</b> The model added '+(added.length?added.map(f=>'<code>'+esc(f.field)+'</code>').join(', '):'no fields')+' to the review list; each now gets Radar’s readiness check ('+a.controls.filter(r=>added.some(f=>f.field===r.field)).length+' clause results).</div>'+
+  '<div class="tbl-wrap mt"><table><thead><tr><th>Field</th><th>Rules</th><th>Model score · top reasons</th><th>Effect</th></tr></thead><tbody>'+a.findings.map(f=>{
+   const eff=f.needsCDE?'Already on the list (rules)':f.rule?'On the list (sensitivity rule)':f.mlSuggested?'<b>Added by the model</b>':!f.ml||!f.ml.known?'No known words':'Below threshold';
+   return '<tr><td><b class="mono">'+esc(f.field)+'</b><br><small class="muted">'+esc(f.description||'')+'</small></td><td>'+(f.needsCDE||f.rule?chip(f.status):'<span class="muted">No signal</span>')+'</td><td>'+(f.ml&&f.ml.known?'<span class="pbar"><i style="width:'+(f.ml.p*100).toFixed(0)+'%"></i></span><b class="mono">'+f.ml.p.toFixed(2)+'</b><br><small class="muted mono">'+esc(f.ml.why.join(' · '))+'</small>':'<span class="muted">—</span>')+'</td><td>'+eff+'</td></tr>'}).join('')+'</tbody></table></div>'+
+  '<div class="row mt"><button class="btn sm" onclick="download(\'model-suggestions.json\',JSON.stringify(window.lastSuggestions,null,2))">↓ Model suggestions</button><a class="btn sm" href="northstar_cde_radar_assurance.html">Continue in Radar →</a></div>';
+ window.lastSuggestions={model_threshold:tNow(),verdict:a.verdict,verdict_without_model:a0.verdict,suggested:added.map(f=>({field:f.field,path:f.path,score:+f.ml.p.toFixed(3),reasons:f.ml.why})),decision_owner:'data steward'};
+ if(!quiet)toast(added.length+' field(s) added to the review list; verdict unchanged.');
+}
+
+PITCH=[[0,15,'The gap','“Rules only find what they were written for. On our 12 test fields they missed the credit limit and the APR.”'],
+ [15,35,'Train and explain','Train in the browser; rules + model catch both with no false candidates. Open a score: “credit line” and “authorization” pushed it up.'],
+ [35,50,'It learns','One steward labels a hardship field; retrain; two related fields the model has never seen now cross the threshold.'],
+ [50,60,'Guardrail','Apply it to the v2.5 spec: two fields added to the review list, verdict unchanged. It suggests; stewards decide.']];
+renderPitch();
+renderQA([
+ ['Why a linear model instead of an LLM?','It is deterministic, cheap to run on every field, and every score decomposes into word weights a validator can read. An approved LLM may explain a suggestion in prose; it never produces the score.'],
+ ['Isn’t the 100% recall on 12 fields meaningless?','It is an illustration on invented examples. The notebook evaluates on whole concepts held out of training (about 0.98 recall, 0.82 precision there), and the pilot measures it on real steward labels.'],
+ ['What stops the model from approving data?','Structurally: it can only add fields to the review list. Verdicts, policy results and reuse decisions do not read its score — and a self-check proves the verdict is identical with and without it.'],
+ ['How does it handle abbreviations like “amt” or “bal”?','Weakly — it is word-based. The notebook compares a character n-gram model that handles them better but is harder to explain; that is a deliberate trade-off.'],
+ ['What does model governance look like?','A model card ships with the JSON. Before production: real labels across applications, an out-of-application test set, drift monitoring and independent validation.']]);
+
+DEMO=[
+ {view:'overview',title:'The gap',text:'Rules find only what they name. The model widens discovery — and only suggests.',act:()=>{}},
+ {view:'train',title:'Train and compare',text:'Rules alone catch 71% of CDEs on 12 test fields; rules + model catch 100% with no false candidates.',act:()=>{mlTrain(true);setTimeout(()=>$('compareAnchor').scrollIntoView({behavior:'smooth'}),150)}},
+ {view:'explain',title:'Explain a score',text:'creditLimit: the decision cue, “credit” and “authorization” push it up. Every score breaks down like this.',act:()=>{$('probeName').value='creditLimit';$('probeDesc').value='Approved credit line used in utilization and authorization';renderProbe()}},
+ {view:'learn',title:'Learn from a steward',text:'One steward label for hardshipPlanFlag, retrain: two unseen hardship fields cross the threshold.',act:()=>{mlTeach();mlTrain(true)}},
+ {view:'apply',title:'Apply to the v2.5 spec',text:'The model adds creditLimit and aprPercent to the review list. The project verdict does not change.',act:()=>{mlClear();loadSpec('extended');applyModel()}}];
+mlTrain(true);loadSpec('extended');renderChecks();
+showView((location.hash||'#overview').slice(1),true);
+</script>
+</body>
+</html>
